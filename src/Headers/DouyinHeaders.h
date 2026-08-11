@@ -92,6 +92,18 @@
 @interface AWEFeedTableView : AWEFeedDataSafeTableView              // 首页 / 朋友页
 @end
 
+// 直播预览的四层容器（背景 / 画面 / 内容 / 控件）。画面与背景按窗口尺寸排，chrome 挂在容器高度上：
+// 表被撑高后容器跟着变高，贴底的那套元素就整体下移一个底栏高，需要叠 transform 抬回去。
+// 具名槽位除 bottomDarkWatermark 外均为调试探针采集用。
+@interface AWELivePreStream4LayerContainerView : UIView
+@property (nonatomic, strong) UIImageView *bottomDarkWatermark;     // 底部暗水印，抬升目标之一
+@property (nonatomic, readonly, strong) UIView *gradientContainerView;
+@property (nonatomic, readonly, strong) UIView *controlContainer;
+@property (nonatomic, strong) UIView *leftContainer;
+@property (nonatomic, strong) UIView *centerContainer;
+@property (nonatomic, strong) UIView *bottomContainer;
+@end
+
 #pragma mark - 底栏功能组用到的类
 
 // 抖音自绘底栏。它自身的 hidden/alpha 是抖音全部显隐逻辑的唯一汇聚点，可直接当镜像源。

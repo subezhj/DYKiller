@@ -634,6 +634,33 @@ static void DKProbeAppendFeed(NSMutableString *out) {
     [out appendFormat:@"HUD 钉位命中统计: %@\n", DKVideoFeedTableStats()];
 }
 
+// 直播预览的 chrome 挂在 4 层容器的高度上，表被撑高后整体下移一个底栏高，靠 transform 抬回。
+// 逐个容器给出位移量、具名槽位与抬升目标——「抬升目标 × 0」就是贴底签名没命中。
+static void DKProbeAppendLivePreview(NSMutableString *out) {
+    Class containerCls = NSClassFromString(@"AWELivePreStream4LayerContainerView");
+    NSMutableArray<UIView *> *containers = [NSMutableArray array];
+    NSMutableArray<UIView *> *pending =
+        [NSMutableArray arrayWithObject:DKDebugTargetWindow()];
+    while (pending.count > 0) {
+        UIView *node = pending.firstObject;
+        [pending removeObjectAtIndex:0];
+        if (containerCls && [node isKindOfClass:containerCls]) {
+            [containers addObject:node];
+            continue;
+        }
+        [pending addObjectsFromArray:node.subviews];
+    }
+
+    if (containers.count == 0) {
+        [out appendString:@"4 层容器         = (本页没有直播预览)\n"];
+        return;
+    }
+
+    for (UIView *container in containers) {
+        [out appendFormat:@"%@\n%@", DKProbeDesc(container), DKLiveChromeStats(container)];
+    }
+}
+
 #pragma mark - 报告
 
 NSString *DKTabBarProbeReport(void) {
@@ -668,6 +695,9 @@ NSString *DKTabBarProbeReport(void) {
     // 被 push 出来的页面正是最需要看表撑高结论的地方，挡在后面就永远采不到。
     [out appendString:@"\n----- 视频表（撑高验证）-----\n"];
     DKProbeAppendFeed(out);
+
+    [out appendString:@"\n----- 直播预览 -----\n"];
+    DKProbeAppendLivePreview(out);
 
     [out appendString:@"\n----- 进度条容器（黑垫层诊断）-----\n"];
     DKProbeAppendProgressContainer(out, DKDebugTargetWindow());
