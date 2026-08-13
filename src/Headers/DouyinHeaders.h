@@ -176,6 +176,24 @@
 - (void)updateImageViewWithViewModel:(id)viewModel;
 @end
 
+#pragma mark - 应用内通知功能组用到的类
+
+@interface AWEInnerNotificationContainerView : UIView
+@property (nonatomic, strong) UIView *containerView;
+@property (nonatomic, strong) UIView *contentView;
+@property (nonatomic, strong) UIStackView *contentContainerView;
+- (void)renderModel:(id)model context:(id)context;
+- (void)viewDidDisappear:(BOOL)animated reason:(long long)reason;
+@end
+
+@interface AWEInnerPushCommonView : UIView
+@property (nonatomic, strong) UIView *leftExtraIconBackgroundView;
+@property (nonatomic, strong) UIImageView *leftExtraIcon;
+@property (nonatomic, strong) UIButton *rightActionButton;
+@property (nonatomic, strong) UIStackView *middleContentTextStackView;
+- (void)updateViewWithRequest:(id)request notificationContent:(id)content viewModel:(id)viewModel;
+@end
+
 #pragma mark - 播放体验功能组用到的类
 
 @interface AWEPlayInteractionFollowPromptView : UIView             // 头像下方「关注(+)」容器；整视图仅含 + 图标

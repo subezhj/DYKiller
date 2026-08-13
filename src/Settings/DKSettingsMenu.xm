@@ -7,7 +7,21 @@
 #import "DouyinHeaders.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
+#import <math.h>
 #import <objc/runtime.h>
+
+@interface _DKSliderRelay : NSObject
+@property (nonatomic, copy) void (^block)(UISlider *slider);
+- (void)changed:(UISlider *)sender;
+@end
+
+@implementation _DKSliderRelay
+- (void)changed:(UISlider *)sender {
+    if (self.block) self.block(sender);
+}
+@end
+
+static char kDKSliderRelayKey;
 
 static char kViewModelKey;   // 手动创建的设置页把 viewModel 挂在这
 
@@ -101,6 +115,83 @@ AWESettingItemModel *DKMakeChoice(NSString *key, NSString *title, NSArray<NSStri
         sheet.popoverPresentationController.sourceRect =
             CGRectMake(CGRectGetMidX(presenter.view.bounds), CGRectGetMidY(presenter.view.bounds), 1, 1);
         [presenter presentViewController:sheet animated:YES completion:nil];
+    };
+    return item;
+}
+
+#pragma mark - 滑条项工厂
+
+static NSString *DKPercentSliderDetail(NSInteger percent) {
+    if (percent <= 0) return @"抖音默认";
+    if (percent >= 100) return @"胶囊";
+    return [NSString stringWithFormat:@"%ld%%", (long)percent];
+}
+
+AWESettingItemModel *DKMakePercentSlider(NSString *key, NSString *title, NSString *message,
+                                         NSInteger defaultPercent, void (^onChange)(NSInteger percent)) {
+    AWESettingItemModel *item = [[%c(AWESettingItemModel) alloc] init];
+    NSNumber *stored = [NSUserDefaults.standardUserDefaults objectForKey:key];
+    NSInteger current = stored ? stored.integerValue : defaultPercent;
+    if (current < 0) current = 0;
+    if (current > 100) current = 100;
+
+    item.identifier = key;
+    item.title = title;
+    item.detail = DKPercentSliderDetail(current);
+    item.type = 0;
+    item.cellType = 26;
+    item.colorStyle = 0;
+    item.isEnable = YES;
+
+    __weak AWESettingItemModel *weakItem = item;
+    void (^onChangeCopy)(NSInteger) = [onChange copy];
+    item.cellTappedBlock = ^{
+        UIViewController *presenter = gSettingsPresenter;
+        if (!presenter) return;
+
+        NSNumber *now = [NSUserDefaults.standardUserDefaults objectForKey:key];
+        NSInteger value = now ? now.integerValue : defaultPercent;
+        if (value < 0) value = 0;
+        if (value > 100) value = 100;
+
+        UIAlertController *alert =
+            [UIAlertController alertControllerWithTitle:title
+                                                message:message
+                                         preferredStyle:UIAlertControllerStyleAlert];
+
+        UIViewController *box = [[UIViewController alloc] init];
+        box.preferredContentSize = CGSizeMake(250, 44);
+        UISlider *slider = [[UISlider alloc] initWithFrame:CGRectMake(8.0, 7.0, 234.0, 30.0)];
+        slider.minimumValue = 0.0;
+        slider.maximumValue = 100.0;
+        slider.value = (float)value;
+        slider.continuous = YES;
+        [box.view addSubview:slider];
+        [alert setValue:box forKey:@"contentViewController"];
+
+        void (^applyValue)(float, BOOL) = ^(float raw, BOOL finish) {
+            NSInteger percent = (NSInteger)lroundf(raw);
+            if (percent < 0) percent = 0;
+            if (percent > 100) percent = 100;
+            [NSUserDefaults.standardUserDefaults setInteger:percent forKey:key];
+            if (onChangeCopy) onChangeCopy(percent);
+            if (!finish) return;
+            [NSUserDefaults.standardUserDefaults synchronize];
+            weakItem.detail = DKPercentSliderDetail(percent);
+            [DKFindTableView(presenter.view) reloadData];
+        };
+
+        _DKSliderRelay *relay = [[_DKSliderRelay alloc] init];
+        relay.block = ^(UISlider *sender) { applyValue(sender.value, NO); };
+        objc_setAssociatedObject(slider, &kDKSliderRelayKey, relay, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [slider addTarget:relay action:@selector(changed:) forControlEvents:UIControlEventValueChanged];
+
+        [alert addAction:[UIAlertAction actionWithTitle:@"完成"
+                                                  style:UIAlertActionStyleDefault
+                                                handler:^(__unused UIAlertAction *action) {
+            applyValue(slider.value, YES);
+        }]];
+        [presenter presentViewController:alert animated:YES completion:nil];
     };
     return item;
 }

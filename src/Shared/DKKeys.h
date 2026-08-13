@@ -32,6 +32,14 @@ static NSString *const DKKeySharePanelGlass      = @"DYKillerSharePanelGlass";
 // 只在分享面板玻璃总开关开启时生效；默认关闭即使用系统 Regular 材质。
 static NSString *const DKKeySharePanelGlassClear = @"DYKillerSharePanelGlassClear";
 
+#pragma mark - 功能组：应用内通知
+
+static NSString *const DKKeyInnerNotiGlass      = @"DYKillerInnerNotiGlass";
+// 只在通知玻璃总开关开启时生效；默认关闭即使用系统 Regular 材质。
+static NSString *const DKKeyInnerNotiGlassClear = @"DYKillerInnerNotiGlassClear";
+// 0–100：0 为抖音原圆角，100 为胶囊。未写入时按 100。
+static NSString *const DKKeyInnerNotiCorner     = @"DYKillerInnerNotiCorner";
+
 #pragma mark - 功能组：底栏
 
 static NSString *const DKKeyGlassTabBar      = @"DYKillerGlassTabBar";
