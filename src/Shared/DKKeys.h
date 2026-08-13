@@ -21,6 +21,7 @@ static NSString *const DKKeyVideoFullscreen = @"DYKillerVideoFullscreen";
 #pragma mark - 功能组：评论区
 
 static NSString *const DKKeyCommentHideBottomBar = @"DYKillerHideCommentBottomBar";
+static NSString *const DKKeyCommentMediaCleanBottomBar = @"DYKillerCommentMediaCleanBottomBar";
 static NSString *const DKKeyCommentGlass         = @"DYKillerCommentGlass";
 // 只在评论玻璃总开关开启时生效；默认关闭即使用系统 Regular 材质。
 static NSString *const DKKeyCommentGlassClear    = @"DYKillerCommentGlassClear";

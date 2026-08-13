@@ -115,6 +115,19 @@
 @interface AWECommentContainerViewController : UIViewController
 @end
 
+// 评论图片大图页。主集合视图按 item 分页，底部输入栏是其根视图的独立子层。
+@interface AWECommentMediaFeedViewController : UIViewController
+@property (nonatomic, assign) long long currentIndex;
+- (CGSize)collectionView:(UICollectionView *)collectionView
+                  layout:(UICollectionViewLayout *)collectionViewLayout
+  sizeForItemAtIndexPath:(NSIndexPath *)indexPath;
+@end
+
+// 大图页内部图片 Cell。mediaContainerView 承载静态图片或 Live Photo 预览。
+@interface AWECommentMediaFeedImageCell : UICollectionViewCell
+- (UIView *)mediaContainerView;
+@end
+
 // 评论区放大到全屏时被 push 上来的容器。它带整套 transition_* 协议方法，配 AWECommentFullScreenZoomTransition
 // 与 CommentFullScreenZoomAnimator——是自定义交互式转场的目标，不能拦下这次 push 改用控制器包含：
 // 转场框架在 push 之前已建好 context 并禁用交互，吞掉 %orig 它的完成回调就永远不来。
