@@ -1,6 +1,6 @@
 //
 //  DKCommentMediaCleaner.xm
-//  功能：清理评论图片大图页底部控件，并让图片在完整窗口内按原比例居中显示。
+//  功能：清理评论图片大图页底栏、返回键与渐变，并让图片在完整窗口内按原比例居中显示。
 //
 
 #import "DouyinHeaders.h"
@@ -24,6 +24,7 @@ static NSString *const kDKMediaInteractionTagClass =
     @"AWECommentMediaFeedSwfitImpl.CommentMediaFeedPlayInteractionTag";
 static NSString *const kDKMediaPreviewClass =
     @"AWECommentMediaFeedSwfitImpl.CommentMediaFeedImagePreviewView";
+static NSString *const kDKMediaBackButtonIdentifier = @"CommentMediaFeedBackButton";
 
 static char kDKMediaVisibilityManagedKey;
 static char kDKMediaOriginalAlphaKey;
@@ -198,6 +199,38 @@ static UIView *DKMediaInputView(AWECommentMediaFeedViewController *controller) {
     return nil;
 }
 
+static BOOL DKMediaButtonHasAction(UIButton *button, SEL action) {
+    if (!button || !action) return NO;
+    for (id target in button.allTargets) {
+        NSArray<NSString *> *actions =
+            [button actionsForTarget:target forControlEvent:UIControlEventTouchUpInside];
+        if ([actions containsObject:NSStringFromSelector(action)]) return YES;
+    }
+    return NO;
+}
+
+// 返回键是根视图直属 UIButton。优先取控制器的 backButton，其次认
+// CommentMediaFeedBackButton，再认 previewDismissByClickBackBtn。不碰删除键。
+static UIView *DKMediaBackButton(AWECommentMediaFeedViewController *controller) {
+    if (!controller.isViewLoaded) return nil;
+
+    if ([controller respondsToSelector:@selector(backButton)]) {
+        UIView *button = controller.backButton;
+        if (button) return button;
+    }
+
+    SEL action = @selector(previewDismissByClickBackBtn);
+    for (UIView *subview in controller.view.subviews) {
+        if (![subview isKindOfClass:UIButton.class]) continue;
+        UIButton *button = (UIButton *)subview;
+        if ([button.accessibilityIdentifier isEqualToString:kDKMediaBackButtonIdentifier]
+            || DKMediaButtonHasAction(button, action)) {
+            return button;
+        }
+    }
+    return nil;
+}
+
 #pragma mark - 页面控件
 
 static void DKMediaApplyInteractionControls(AWECommentMediaFeedViewController *controller) {
@@ -219,7 +252,7 @@ static void DKMediaApplyInteractionControls(AWECommentMediaFeedViewController *c
     }
 }
 
-static BOOL DKMediaIsBottomGradient(UIView *view) {
+static BOOL DKMediaGradientMatchesEdge(UIView *view, BOOL top) {
     if (![NSStringFromClass(view.class) isEqualToString:@"AWEGradientView"]) return NO;
     UIView *parent = view.superview;
     if (!parent) return NO;
@@ -227,31 +260,37 @@ static BOOL DKMediaIsBottomGradient(UIView *view) {
     CGRect frame = [view convertRect:view.bounds toView:parent];
     CGRect bounds = parent.bounds;
     CGFloat tolerance = MAX(1.0 / UIScreen.mainScreen.scale, 0.5);
-    return fabs(CGRectGetMinX(frame) - CGRectGetMinX(bounds)) <= tolerance
-        && fabs(CGRectGetWidth(frame) - CGRectGetWidth(bounds)) <= tolerance
-        && fabs(CGRectGetMaxY(frame) - CGRectGetMaxY(bounds)) <= tolerance
+    BOOL fullWidth = fabs(CGRectGetMinX(frame) - CGRectGetMinX(bounds)) <= tolerance
+        && fabs(CGRectGetWidth(frame) - CGRectGetWidth(bounds)) <= tolerance;
+    if (!fullWidth) return NO;
+
+    if (top) {
+        return fabs(CGRectGetMinY(frame) - CGRectGetMinY(bounds)) <= tolerance
+            && CGRectGetMaxY(frame) < CGRectGetMaxY(bounds) - tolerance;
+    }
+    return fabs(CGRectGetMaxY(frame) - CGRectGetMaxY(bounds)) <= tolerance
         && CGRectGetMinY(frame) > CGRectGetMinY(bounds) + tolerance;
 }
 
-static void DKMediaApplyBottomGradients(UIView *view) {
+static void DKMediaApplyChromeGradients(UIView *view) {
     if (!view) return;
     for (UIView *subview in view.subviews) {
         if ([NSStringFromClass(subview.class) isEqualToString:@"AWEGradientView"]) {
-            if (DKMediaIsBottomGradient(subview)) {
+            if (DKMediaGradientMatchesEdge(subview, YES) || DKMediaGradientMatchesEdge(subview, NO)) {
                 DKMediaSuppressView(subview);
             } else {
                 DKMediaRestoreView(subview);
             }
             continue;
         }
-        DKMediaApplyBottomGradients(subview);
+        DKMediaApplyChromeGradients(subview);
     }
 }
 
 static void DKMediaApplyCommonCellChrome(AWECommentMediaFeedViewController *controller) {
     for (UIViewController *common in
          DKMediaControllersNamed(controller, kDKMediaCommonControllerClass)) {
-        DKMediaApplyBottomGradients(common.viewIfLoaded);
+        DKMediaApplyChromeGradients(common.viewIfLoaded);
     }
 }
 
@@ -377,6 +416,7 @@ static void DKMediaApplyControllerState(AWECommentMediaFeedViewController *contr
 
     DKMediaApplyCollectionState(controller, YES);
     DKMediaSuppressView(DKMediaInputView(controller));
+    DKMediaSuppressView(DKMediaBackButton(controller));
     DKMediaApplyHairlineSeparators(controller);
     DKMediaApplyInteractionControls(controller);
     DKMediaApplyCommonCellChrome(controller);
@@ -469,7 +509,7 @@ static void DKMediaApplyImageCellState(AWECommentMediaFeedImageCell *cell) {
         AWESettingItemModel *item = DKMakeSwitch(
             DKKeyCommentMediaCleanBottomBar,
             @"评论区图片清理底栏",
-            @"隐藏图片页底部交互并让图片完整居中显示"
+            @"隐藏图片页底栏、返回键与底部交互，图片完整居中显示"
         );
         void (^origBlock)(void) = [item.switchChangedBlock copy];
         item.switchChangedBlock = ^{

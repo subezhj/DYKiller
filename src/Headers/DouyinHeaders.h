@@ -116,11 +116,14 @@
 @end
 
 // 评论图片大图页。主集合视图按 item 分页，底部输入栏是其根视图的独立子层。
+// backButton 是左上角返回键，点击走 previewDismissByClickBackBtn。
 @interface AWECommentMediaFeedViewController : UIViewController
 @property (nonatomic, assign) long long currentIndex;
+@property (nonatomic, strong) UIButton *backButton;
 - (CGSize)collectionView:(UICollectionView *)collectionView
                   layout:(UICollectionViewLayout *)collectionViewLayout
   sizeForItemAtIndexPath:(NSIndexPath *)indexPath;
+- (void)previewDismissByClickBackBtn;
 @end
 
 // 大图页内部图片 Cell。mediaContainerView 承载静态图片或 Live Photo 预览。
