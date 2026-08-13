@@ -29,6 +29,7 @@
 #import "DouyinHeaders.h"
 #import "DKCommentGlass.h"
 #import "DKGlassFlexView.h"
+#import "DKGlassGuard.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
 #import "DKUtils.h"
@@ -54,6 +55,7 @@ static const NSTimeInterval kDKGlassAnimationDuration = 0.25;
 
 static char kSlotOriginalColorKey;     // 槽位：抖音写的底色
 static char kSlotGlassKey;             // 槽位：我们插的玻璃层
+static char kCoverOriginalColorKey;    // 满幅遮盖层：抖音写的底色
 static char kGlassClearModeKey;         // 玻璃：当前 effect 是否按 Clear 构造
 static char kGlassStyleKey;             // 玻璃：当前 effect 对应的场景外观
 static char kGlassMaterializingKey;     // 玻璃：已排入 materialize，防止重复排队
@@ -62,6 +64,8 @@ static char kGlassMaterializingKey;     // 玻璃：已排入 materialize，防�
 static BOOL gEverAttached = NO;
 // 所有在场的玻璃层，供深浅色切换时统一更新。
 static NSHashTable *gGlassCarriers = nil;
+// 已清过底色的满幅遮盖层，关开关时还原。
+static NSHashTable *gClearedCovers = nil;
 // 已挂上深浅色监听的场景，避免重复注册。
 static __weak UIWindowScene *gObservedScene = nil;
 // 最近接管的面板槽位与输入框槽位，只给调试探针读。
@@ -102,8 +106,12 @@ static UIUserInterfaceStyle DKGlassStyleForView(UIView *view) {
     return style == UIUserInterfaceStyleUnspecified ? UIUserInterfaceStyleLight : style;
 }
 
+static BOOL DKCommentGlassEnabled(void) {
+    return DKGlassOSAvailable() && DKPrefBool(DKKeyCommentGlass);
+}
+
 static BOOL DKCommentGlassUsesClearMaterial(void) {
-    return DKPrefBool(DKKeyCommentGlassClear);
+    return DKGlassOSAvailable() && DKPrefBool(DKKeyCommentGlassClear);
 }
 
 static UIUserInterfaceStyle DKGlassOverrideStyle(BOOL clear, UIUserInterfaceStyle style) {
@@ -313,7 +321,7 @@ static void DKMaterializeGlass(UIVisualEffectView *glass, UIViewController *cont
     objc_setAssociatedObject(glass, &kGlassMaterializingKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
     DKRunGlassAnimation(controller, YES, ^{
-        if (!glass.superview || !DKPrefBool(DKKeyCommentGlass)) {
+        if (!glass.superview || !DKCommentGlassEnabled()) {
             objc_setAssociatedObject(glass, &kGlassMaterializingKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             return;
         }
@@ -331,24 +339,87 @@ static void DKMaterializeGlass(UIVisualEffectView *glass, UIViewController *cont
 // 输入栏底色槽只做到这一步：它落在主面板槽位的矩形之内，清成透明后主面板玻璃直接透上来，
 // 不必也不该再给它单独一块玻璃。
 static BOOL DKClearSlotColor(UIView *slot) {
-    UIColor *current = slot.backgroundColor;
-    if (DKColorIsOpaque(current)) {
-        objc_setAssociatedObject(slot, &kSlotOriginalColorKey, current, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        slot.backgroundColor = UIColor.clearColor;
-        gEverAttached = YES;
+    if (objc_getAssociatedObject(slot, &kSlotOriginalColorKey)) {
+        if (DKColorIsOpaque(slot.backgroundColor)) slot.backgroundColor = UIColor.clearColor;
         return YES;
     }
-    return objc_getAssociatedObject(slot, &kSlotOriginalColorKey) != nil;
+    UIColor *current = slot.backgroundColor;
+    if (!DKColorIsOpaque(current)) return NO;
+    objc_setAssociatedObject(slot, &kSlotOriginalColorKey, current, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    slot.backgroundColor = UIColor.clearColor;
+    gEverAttached = YES;
+    return YES;
+}
+
+// 主面板列表若被涂成不透明色，会盖住垫在最底层的玻璃。只动满幅容器，不动文字/按钮/图片。
+static const NSUInteger kDKCoverWalkDepth = 14;
+static const CGFloat kDKCoverMinHeight = 8.0;
+
+static BOOL DKIsCoverCandidate(UIView *view, UIView *slot) {
+    if (!view || view == slot) return NO;
+    if (view.hidden || view.alpha < 0.01) return NO;
+    if ([view isKindOfClass:UILabel.class]
+        || [view isKindOfClass:UIControl.class]
+        || [view isKindOfClass:UIImageView.class]
+        || [view isKindOfClass:UIVisualEffectView.class]) {
+        return NO;
+    }
+    if (fabs(CGRectGetWidth(view.bounds) - CGRectGetWidth(slot.bounds)) > 1.0) return NO;
+    if (CGRectGetHeight(view.bounds) < kDKCoverMinHeight) return NO;
+    return YES;
+}
+
+static void DKClearCoverColor(UIView *view) {
+    if (objc_getAssociatedObject(view, &kCoverOriginalColorKey)) {
+        if (DKColorIsOpaque(view.backgroundColor)) view.backgroundColor = UIColor.clearColor;
+        return;
+    }
+    if (!DKColorIsOpaque(view.backgroundColor)) return;
+    objc_setAssociatedObject(view, &kCoverOriginalColorKey,
+                             view.backgroundColor, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    [gClearedCovers addObject:view];
+    view.backgroundColor = UIColor.clearColor;
+}
+
+static void DKWalkClearCovers(UIView *view, UIView *slot, NSUInteger depth) {
+    if (depth > kDKCoverWalkDepth) return;
+    for (UIView *sub in view.subviews) {
+        if ([sub isKindOfClass:DKGlassFlexView.class]) continue;
+        if (DKIsCoverCandidate(sub, slot)) DKClearCoverColor(sub);
+        if ([sub isKindOfClass:UILabel.class] || [sub isKindOfClass:UIImageView.class]) continue;
+        DKWalkClearCovers(sub, slot, depth + 1);
+    }
+}
+
+static void DKClearCoverLayers(UIView *slot) {
+    if (!slot) return;
+    DKWalkClearCovers(slot, slot, 0);
+}
+
+static void DKRestoreCoverColor(UIView *view) {
+    UIColor *original = objc_getAssociatedObject(view, &kCoverOriginalColorKey);
+    if (!original) return;
+    objc_setAssociatedObject(view, &kCoverOriginalColorKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    view.backgroundColor = original;
+}
+
+static void DKRestoreAllCovers(void) {
+    NSArray<UIView *> *views = gClearedCovers.allObjects;
+    [gClearedCovers removeAllObjects];
+    for (UIView *view in views) DKRestoreCoverColor(view);
 }
 
 // 接管一个槽位：清掉它的不透明底色，在最底层插一层玻璃壳。
-// 返回 nil 表示这个槽位不该接管——要么本来就没有底色，要么已被别的插件插了玻璃。
-static UIView *DKAttachGlass(UIView *slot, DKGlassShape shape) API_AVAILABLE(ios(26.0)) {
+// requireOpaque：输入框胶囊必须本来有底色；主面板槽位按类名认定，底色透明也要挂。
+// 返回 nil 表示这个槽位不该接管——已被别的插件插了玻璃，或（输入框）没有底色。
+static UIView *DKAttachGlass(UIView *slot, DKGlassShape shape, BOOL requireOpaque)
+    API_AVAILABLE(ios(26.0)) {
     UIView *glass = objc_getAssociatedObject(slot, &kSlotGlassKey);
     // 退让只在尚未接管时判定；接管之后层级由 DKEnsureBackmost 维持，不能再据此退出。
     if (!glass && [slot.subviews.firstObject isKindOfClass:UIVisualEffectView.class]) return nil;
 
-    if (!DKClearSlotColor(slot)) return nil;
+    BOOL cleared = DKClearSlotColor(slot);
+    if (requireOpaque && !cleared) return nil;
 
     if (!glass) {
         glass = DKMakeGlassShell();
@@ -364,11 +435,12 @@ static UIView *DKAttachGlass(UIView *slot, DKGlassShape shape) API_AVAILABLE(ios
 }
 
 static void DKDetachGlass(UIView *slot) {
+    UIView *glass = objc_getAssociatedObject(slot, &kSlotGlassKey);
     UIColor *original = objc_getAssociatedObject(slot, &kSlotOriginalColorKey);
-    if (!original) return;
+    if (!glass && !original) return;
 
-    [(UIView *)objc_getAssociatedObject(slot, &kSlotGlassKey) removeFromSuperview];
-    slot.backgroundColor = original;
+    [glass removeFromSuperview];
+    if (original) slot.backgroundColor = original;
 
     objc_setAssociatedObject(slot, &kSlotOriginalColorKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     objc_setAssociatedObject(slot, &kSlotGlassKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -391,7 +463,7 @@ static void DKSyncInputGlass(UIView *container) API_AVAILABLE(ios(26.0)) {
     if (!field) return;
 
     // 胶囊不用 UIGlassContainerEffect：嵌套会被合并成同一形状。
-    UIVisualEffectView *glass = (UIVisualEffectView *)DKAttachGlass(field, DKGlassShapeCapsule);
+    UIVisualEffectView *glass = (UIVisualEffectView *)DKAttachGlass(field, DKGlassShapeCapsule, YES);
     if (!glass) return;
     gLastFieldSlot = field;
     if (!CGRectEqualToRect(glass.frame, field.bounds)) glass.frame = field.bounds;
@@ -405,7 +477,7 @@ static void DKMaterializeSlotGlass(UIView *slot, UIViewController *controller) A
 }
 
 static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(26.0)) {
-    BOOL enabled = DKPrefBool(DKKeyCommentGlass);
+    BOOL enabled = DKCommentGlassEnabled();
     if (!enabled && !gEverAttached) return;
 
     UIView *panel = DKPanelSlot(controller);
@@ -421,6 +493,7 @@ static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(2
         DKResolveInputSlots(inputContainer, &backdrop, &field);
         DKDetachGlass(backdrop);
         DKDetachGlass(field);
+        DKRestoreAllCovers();
         return;
     }
 
@@ -433,7 +506,7 @@ static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(2
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
 
-    panelGlass = (UIVisualEffectView *)DKAttachGlass(panel, DKGlassShapeTopRounded);
+    panelGlass = (UIVisualEffectView *)DKAttachGlass(panel, DKGlassShapeTopRounded, NO);
     if (panelGlass) {
         gLastPanelSlot = panel;
 
@@ -441,6 +514,7 @@ static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(2
         // 不需要给它让位，也就没有「让了位却没人盖」的时序窗口。
         if (!CGRectEqualToRect(panelGlass.frame, panel.bounds)) panelGlass.frame = panel.bounds;
         DKEnsureBackmost(panel, panelGlass);
+        DKClearCoverLayers(panel);
 
         DKSyncInputGlass(inputContainer);
     }
@@ -464,6 +538,8 @@ static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(2
 
 // DKCommentBottomBar.xm 也在这两个方法上挂了一层（底栏抑制），两处分属两个功能、各有各的开关，
 // 本文件这一层还整体受 iOS 26 可用性约束。多层 %hook 会正常串联，两条同时生效。
+%group DKCommentGlassHooks
+
 %hook AWECommentContainerViewController
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -478,10 +554,27 @@ static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(2
 
 %end
 
+%hook UIView
+
+- (void)setBackgroundColor:(UIColor *)color {
+    if ((objc_getAssociatedObject(self, &kCoverOriginalColorKey)
+         || objc_getAssociatedObject(self, &kSlotOriginalColorKey))
+        && DKColorIsOpaque(color)) {
+        %orig(UIColor.clearColor);
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%end
+
 #pragma mark - 设置项注册
 
 %ctor {
     gGlassCarriers = [NSHashTable weakObjectsHashTable];
+    gClearedCovers = [NSHashTable weakObjectsHashTable];
 
     DKSettingsRegisterItem(@"评论区", ^AWESettingItemModel *{
         return DKMakeSwitch(
@@ -512,4 +605,8 @@ static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(2
         };
         return item;
     });
+
+    if (DKGlassOSAvailable()) {
+        %init(DKCommentGlassHooks);
+    }
 }

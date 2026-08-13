@@ -5,6 +5,7 @@
 
 #import "DouyinHeaders.h"
 #import "DKGlassFlexView.h"
+#import "DKGlassGuard.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
 #import "DKUtils.h"
@@ -50,11 +51,11 @@ typedef NS_ENUM(NSInteger, DKShareCloseMode) {
 #pragma mark - 开关与材质
 
 static BOOL DKShareEnabled(void) {
-    return DKPrefBool(DKKeySharePanelGlass);
+    return DKGlassOSAvailable() && DKPrefBool(DKKeySharePanelGlass);
 }
 
 static BOOL DKShareUsesClear(void) {
-    return DKPrefBool(DKKeySharePanelGlassClear);
+    return DKGlassOSAvailable() && DKPrefBool(DKKeySharePanelGlassClear);
 }
 
 static BOOL DKShareColorOpaque(UIColor *color) {
@@ -654,6 +655,8 @@ static void DKShareRefreshVisible(void) {
 
 #pragma mark - Hook
 
+%group DKSharePanelGlassHooks
+
 %hook AWESharePanelContainerViewController
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -732,6 +735,8 @@ static void DKShareRefreshVisible(void) {
 
 %end
 
+%end
+
 #pragma mark - 设置
 
 %ctor {
@@ -781,4 +786,8 @@ static void DKShareRefreshVisible(void) {
         };
         return item;
     });
+
+    if (DKGlassOSAvailable()) {
+        %init(DKSharePanelGlassHooks);
+    }
 }

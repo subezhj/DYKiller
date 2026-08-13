@@ -17,6 +17,7 @@
 #import "DKGlassTabBar.h"
 #import "DKAudioVisualizer.h"
 #import "DouyinHeaders.h"
+#import "DKGlassGuard.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
 #import "DKUtils.h"
@@ -115,6 +116,16 @@ static UITabBarController *DKGlassControllerForView(UIView *view) {
     return nil;
 }
 
+#pragma mark - 开关
+
+static BOOL DKGlassTabBarEnabled(void) {
+    return DKGlassOSAvailable() && DKPrefBool(DKKeyGlassTabBar);
+}
+
+static BOOL DKGlassTabBarUsesClear(void) {
+    return DKGlassOSAvailable() && DKPrefBool(DKKeyGlassTabBarClear);
+}
+
 #pragma mark - 材质
 
 // 胶囊与拍摄圆键共用。档位跟「清透玻璃」开关走：关＝系统默认磨砂，开＝Clear。
@@ -124,7 +135,7 @@ static UITabBarController *DKGlassControllerForView(UIView *view) {
 // 再叠一层染色会压暗两次。所以染色只给 Clear。
 static UIGlassEffect *DKGlassMakeGlassEffect(UIUserInterfaceStyle style, BOOL interactive)
     API_AVAILABLE(ios(26.0)) {
-    BOOL clear = DKPrefBool(DKKeyGlassTabBarClear);
+    BOOL clear = DKGlassTabBarUsesClear();
     UIGlassEffect *effect = [UIGlassEffect effectWithStyle:
         clear ? UIGlassEffectStyleClear : UIGlassEffectStyleRegular];
     if (clear) effect.tintColor = DKGlassTintForStyle(style);
@@ -168,7 +179,7 @@ static void DKGlassApplyPlatterGlass(UIView *platter, UIUserInterfaceStyle style
 
     BOOL patched = current && current == gPlatterGlassInstalled;
 
-    if (!DKPrefBool(DKKeyGlassTabBarClear)) {
+    if (!DKGlassTabBarUsesClear()) {
         if (!patched) return;                       // 没接管过，无需还原
         id original = objc_getAssociatedObject(platter, &kDKPlatterOriginalGlassKey);
         @try {
@@ -207,7 +218,7 @@ static void DKGlassApplyPlatterGlass(UIView *platter, UIUserInterfaceStyle style
 NSString *DKGlassPlatterGlassStatus(void) {
     if (!gPlatterGlassProbed) return @"未尝试（功能关闭或 platter 尚未建立）";
     if (!gPlatterGlassSupported) return @"属性不存在，已放弃——保持系统默认磨砂";
-    if (!DKPrefBool(DKKeyGlassTabBarClear)) return @"清透开关关闭 · 系统默认磨砂";
+    if (!DKGlassTabBarUsesClear()) return @"清透开关关闭 · 系统默认磨砂";
     id installed = gPlatterGlassInstalled;
     if (!installed) return @"清透开关开启但尚未装上，下一次布局补";
     UIColor *tint = DKGlassTintForStyle(gPlatterGlassStyle);
@@ -628,7 +639,7 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
     gDouyinBar = douyinBar;
 
     NSArray *buttons = DKGlassValue(douyinBar, @"tabBarButtons");
-    if (!DKPrefBool(DKKeyGlassTabBar)) {
+    if (!DKGlassTabBarEnabled()) {
         if (!gBar) return;
         DKGlassSetDouyinContentVisible(douyinBar, buttons, YES);
         [gBar removeFromSuperview];
@@ -686,6 +697,8 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 
 #pragma mark - Hook
 
+%group DKGlassTabBarHooks
+
 %hook AWENormalModeTabBar
 
 - (void)layoutSubviews {
@@ -732,6 +745,8 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 
 %end
 
+%end
+
 #pragma mark - 设置项注册
 
 %ctor {
@@ -774,4 +789,8 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
         };
         return item;
     });
+
+    if (DKGlassOSAvailable()) {
+        %init(DKGlassTabBarHooks);
+    }
 }

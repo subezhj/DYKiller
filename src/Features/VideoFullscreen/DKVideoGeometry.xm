@@ -17,6 +17,7 @@
 
 #import "DouyinHeaders.h"
 #import "DKVideoFullscreen.h"
+#import "DKGlassGuard.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
 #import "DKUtils.h"
@@ -36,7 +37,7 @@ BOOL DKVideoFullscreenOn(void) {
 }
 
 BOOL DKCommentFreezeOn(void) {
-    return DKPrefBool(DKKeyCommentGlass);
+    return DKGlassOSAvailable() && DKPrefBool(DKKeyCommentGlass);
 }
 
 void DKVideoFullscreenRegisterRestore(void (*restore)(void)) {

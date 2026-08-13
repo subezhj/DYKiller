@@ -4,14 +4,17 @@
 //
 
 #import "DKUtils.h"
+#import "DKGlassGuard.h"
 #import "DKKeys.h"
 #import "DouyinHeaders.h"
 
 BOOL DKPrefBool(NSString *key) {
+    if (DKGlassIsGatedKey(key) && !DKGlassOSAvailable()) return NO;
     return [[NSUserDefaults standardUserDefaults] boolForKey:key];
 }
 
 NSInteger DKPrefInteger(NSString *key) {
+    if (DKGlassIsGatedKey(key) && !DKGlassOSAvailable()) return 0;
     return [[NSUserDefaults standardUserDefaults] integerForKey:key];
 }
 

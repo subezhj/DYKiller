@@ -5,8 +5,10 @@
 //
 
 #import "DouyinHeaders.h"
+#import "DKGlassGuard.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
+#import "DKUtils.h"
 #import <math.h>
 #import <objc/runtime.h>
 
@@ -39,6 +41,26 @@ void DKSettingsRegisterItem(NSString *sectionHeader, DKSettingItemBuilder builde
     [DKSectionRegistry() addObject:@{ @"header": sectionHeader, @"builder": [builder copy] }];
 }
 
+#pragma mark - 液态玻璃设置项
+
+static NSString *const kDKGlassOSTitleSuffix = @" (iOS26+)";
+
+// 低系统：标题加后缀、灰掉、掐掉点击。在 builder 返回之后调用，盖住功能自己包的回调。
+static void DKGlassLockItemIfNeeded(AWESettingItemModel *item) {
+    if (!item || DKGlassOSAvailable() || !DKGlassIsGatedKey(item.identifier)) return;
+
+    if (item.title.length && ![item.title hasSuffix:kDKGlassOSTitleSuffix]) {
+        item.title = [item.title stringByAppendingString:kDKGlassOSTitleSuffix];
+    }
+    item.isEnable = NO;
+    item.isSwitchOn = NO;
+    __weak AWESettingItemModel *weakItem = item;
+    item.switchChangedBlock = ^{
+        weakItem.isSwitchOn = NO;
+    };
+    item.cellTappedBlock = nil;
+}
+
 #pragma mark - 开关项工厂
 
 AWESettingItemModel *DKMakeSwitch(NSString *key, NSString *title, NSString *detail) {
@@ -50,7 +72,7 @@ AWESettingItemModel *DKMakeSwitch(NSString *key, NSString *title, NSString *deta
     item.cellType = 6;                 // 开关型 cell
     item.colorStyle = 0;
     item.isEnable = YES;
-    item.isSwitchOn = [[NSUserDefaults standardUserDefaults] boolForKey:key];
+    item.isSwitchOn = DKPrefBool(key);
 
     __weak AWESettingItemModel *weakItem = item;
     item.switchChangedBlock = ^{
@@ -225,6 +247,7 @@ static void DKShowSettings(UIViewController *rootVC) {
         DKSettingItemBuilder builder = desc[@"builder"];
         AWESettingItemModel *item = builder ? builder() : nil;
         if (!item) continue;
+        DKGlassLockItemIfNeeded(item);
         NSMutableArray *arr = itemsByHeader[header];
         if (!arr) { arr = [NSMutableArray array]; itemsByHeader[header] = arr; [headerOrder addObject:header]; }
         [arr addObject:item];

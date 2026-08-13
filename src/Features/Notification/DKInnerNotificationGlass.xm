@@ -6,6 +6,7 @@
 
 #import "DouyinHeaders.h"
 #import "DKGlassFlexView.h"
+#import "DKGlassGuard.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
 #import "DKUtils.h"
@@ -45,11 +46,11 @@ static UIUserInterfaceStyle gGlassStyle = UIUserInterfaceStyleUnspecified;
 #pragma mark - 开关与材质
 
 static BOOL DKNotiEnabled(void) {
-    return DKPrefBool(DKKeyInnerNotiGlass);
+    return DKGlassOSAvailable() && DKPrefBool(DKKeyInnerNotiGlass);
 }
 
 static BOOL DKNotiUsesClear(void) {
-    return DKPrefBool(DKKeyInnerNotiGlassClear);
+    return DKGlassOSAvailable() && DKPrefBool(DKKeyInnerNotiGlassClear);
 }
 
 // 未写过键时保持胶囊（100），与 beta7 观感一致。
@@ -684,6 +685,8 @@ static void DKNotiRefreshVisible(void) {
 
 #pragma mark - Hook
 
+%group DKInnerNotificationGlassHooks
+
 %hook AWEInnerNotificationContainerView
 
 - (void)renderModel:(id)model context:(id)context {
@@ -750,6 +753,8 @@ static void DKNotiRefreshVisible(void) {
 
 %end
 
+%end
+
 #pragma mark - 设置
 
 %ctor {
@@ -809,4 +814,8 @@ static void DKNotiRefreshVisible(void) {
             }
         );
     });
+
+    if (DKGlassOSAvailable()) {
+        %init(DKInnerNotificationGlassHooks);
+    }
 }

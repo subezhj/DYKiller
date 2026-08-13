@@ -17,6 +17,7 @@
 #import "DKAudioVisualizer.h"
 #import "DKAudioLevels.h"
 #import "DKAudioTap.h"
+#import "DKGlassGuard.h"
 #import "DKGlassTabBar.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
@@ -100,6 +101,7 @@ static CGRect gPlusFrame = CGRectNull;
 #pragma mark - 开关
 
 static DKVizMode DKVizCurrentMode(void) {
+    if (!DKGlassOSAvailable()) return DKVizModeOff;
     NSInteger position = DKPrefInteger(DKKeyAudioVizPosition);
     if (position < DKVizModeOff || position > DKVizModePlusRing) return DKVizModeOff;
     return (DKVizMode)position;
@@ -387,6 +389,10 @@ static void DKVizSetVisible(BOOL visible) {
 #pragma mark - 挂载
 
 void DKAudioVisualizerLayout(UIView *douyinBar) {
+    if (!DKGlassOSAvailable()) {
+        if (gHost) DKVizTeardown();
+        return;
+    }
     DKVizMode mode = DKVizCurrentMode();
     UIView *platter = DKGlassPlatterCurrent();
     UIView *plusKey = DKGlassPlusKeyCurrent();
