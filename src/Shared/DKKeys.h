@@ -26,6 +26,12 @@ static NSString *const DKKeyCommentGlass         = @"DYKillerCommentGlass";
 // 只在评论玻璃总开关开启时生效；默认关闭即使用系统 Regular 材质。
 static NSString *const DKKeyCommentGlassClear    = @"DYKillerCommentGlassClear";
 
+#pragma mark - 功能组：分享
+
+static NSString *const DKKeySharePanelGlass      = @"DYKillerSharePanelGlass";
+// 只在分享面板玻璃总开关开启时生效；默认关闭即使用系统 Regular 材质。
+static NSString *const DKKeySharePanelGlassClear = @"DYKillerSharePanelGlassClear";
+
 #pragma mark - 功能组：底栏
 
 static NSString *const DKKeyGlassTabBar      = @"DYKillerGlassTabBar";

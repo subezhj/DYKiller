@@ -158,6 +158,24 @@
 @interface AWEIMEmoticonPanelContainerView : UIView                 // 表情面板；评论区复用 IM 那一套，挂在输入容器里
 @end
 
+#pragma mark - 分享面板功能组用到的类
+
+// DUX 底栏弹层外壳。contentView 是带 20pt 顶圆角的 DUXVisualEffectView，目前几乎不模糊。
+@interface AWESharePanelContainerViewController : UIViewController
+@end
+
+@interface AWESharePanelViewController : UIViewController
+- (void)awe_themeReload;
+@end
+
+// 第三行功能键。imageView 是 56×56 白圆+图标；smallImageView 导出里无图。
+@interface AWESharePanelFunctionCell : UICollectionViewCell
+@property (nonatomic, strong) UIImageView *imageView;
+@property (nonatomic, strong) UIImageView *smallImageView;
+- (void)updateWithViewModel:(id)viewModel bigFontAdapter:(id)adapter;
+- (void)updateImageViewWithViewModel:(id)viewModel;
+@end
+
 #pragma mark - 播放体验功能组用到的类
 
 @interface AWEPlayInteractionFollowPromptView : UIView             // 头像下方「关注(+)」容器；整视图仅含 + 图标
