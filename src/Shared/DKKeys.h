@@ -77,6 +77,8 @@ static NSString *const DKKeyProfileHideUGCGuide = @"DYKillerHideProfileUGCGuide"
 
 // 在搜索中间页创建前移除猜你喜欢/热榜 Tab，阻止对应 Lynx 榜单资源加载。
 static NSString *const DKKeyHideSearchTrendingBoard = @"DYKillerHideSearchTrendingBoard";
+// 搜索中间页隐藏“猜你想搜”推荐词区域，保留历史搜索与热榜。
+static NSString *const DKKeyHideSearchRecommend = @"DYKillerHideSearchRecommend";
 
 #pragma mark - 功能组：调试工具
 

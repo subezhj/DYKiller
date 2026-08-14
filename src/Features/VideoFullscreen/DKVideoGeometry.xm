@@ -36,6 +36,16 @@ BOOL DKVideoFullscreenOn(void) {
     return DKPrefBool(DKKeyVideoFullscreen);
 }
 
+BOOL DKVideoGeometryOwnedByDYYY(void) {
+    Class settingClass = NSClassFromString(@"DYYYSettingViewController");
+    return settingClass != Nil
+        && [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableFullScreen"];
+}
+
+BOOL DKVideoGeometryOn(void) {
+    return DKVideoFullscreenOn() && !DKVideoGeometryOwnedByDYYY();
+}
+
 BOOL DKCommentFreezeOn(void) {
     return DKGlassOSAvailable() && DKPrefBool(DKKeyCommentGlass);
 }
@@ -95,7 +105,7 @@ static BOOL DKMergeCanCoverScreen(AWEDPlayerViewController_Merge *merge) {
 // 「要不要拉满」是 model 的函数，而 model 可能晚于 frame 写入才绑定；
 // 补算在 DKVideoPageChrome.xm 的 willDisplay 里。
 CGRect DKVideoContainerTargetFrame(UIView *view) {
-    if (!DKVideoFullscreenOn() && !DKCommentFreezeOn()) return CGRectNull;
+    if (!DKVideoGeometryOn() && !DKCommentFreezeOn()) return CGRectNull;
 
     // 作用域只到主窗口：浮层窗口（画中画、横屏播放器）自带一整套 Merge / PlayVideo 层级，
     // 与 feed 里那套长得一样，钉成满幅会把小窗撑成盖住整页的全屏播放器。
@@ -112,7 +122,7 @@ CGRect DKVideoContainerTargetFrame(UIView *view) {
     CGFloat height = CGRectGetHeight(parent.bounds);
     if (width <= 0.0 || height <= 0.0) return CGRectNull;
 
-    if (DKVideoFullscreenOn()
+    if (DKVideoGeometryOn()
         && DKMergeCanCoverScreen((AWEDPlayerViewController_Merge *)view.nextResponder)) {
         CGFloat full = DKFullCellHeight(view);
         if (full > height) height = full;

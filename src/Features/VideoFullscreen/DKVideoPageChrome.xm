@@ -230,6 +230,15 @@ static BOOL DKIsUnderRichContent(UIViewController *controller) {
 
 %end
 
+static BOOL DKViewIsInsideClass(UIView *view, NSString *className) {
+    Class cls = NSClassFromString(className);
+    if (!cls) return NO;
+    for (UIView *ancestor = view; ancestor; ancestor = ancestor.superview) {
+        if ([ancestor isKindOfClass:cls]) return YES;
+    }
+    return NO;
+}
+
 #pragma mark - 图文
 
 static NSHashTable<UIView *> *gDKManagedVisualViews;
@@ -433,6 +442,20 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 
 - (void)viewDidLayoutSubviews {
     %orig;
+
+    // 搜索图文详情的 Cell 为 874pt，但 RichContent 容器被原生保留在 799pt，
+    // 底部 75pt 因此露出黑底。只延伸容器，不改内容滚动和播放器路由。
+    if (DKVideoFullscreenOn() && self.viewIfLoaded.superview) {
+        UIView *view = self.viewIfLoaded;
+        UIView *parent = view.superview;
+        CGFloat parentHeight = CGRectGetHeight(parent.bounds);
+        if (parentHeight > CGRectGetHeight(view.bounds) + 1.0
+            && DKViewIsInsideClass(view, @"AWEAwemeDetailTableViewCell")) {
+            CGRect frame = view.frame;
+            frame.size.height = parentHeight;
+            view.frame = frame;
+        }
+    }
     DKSyncRichClips(self.viewIfLoaded);
 }
 
@@ -513,14 +536,6 @@ void DKHUDStatusBarCoverSync(UIViewController *interaction) {
     }
 }
 
-static BOOL DKViewIsInsideClass(UIView *view, NSString *className) {
-    Class cls = NSClassFromString(className);
-    for (UIView *ancestor = view.superview; ancestor; ancestor = ancestor.superview) {
-        if ([ancestor isKindOfClass:cls]) return YES;
-    }
-    return NO;
-}
-
 static BOOL DKNavigationCameFromSearch(UIViewController *controller) {
     Class searchClass = NSClassFromString(@"AWESearchViewController");
     for (UIViewController *entry in controller.navigationController.viewControllers) {
@@ -534,6 +549,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     Class stackClass = NSClassFromString(@"AWEElementStackView");
     if (!hud || !stackClass) return;
     BOOL active = DKVideoFullscreenOn()
+        && !DKVideoGeometryOwnedByDYYY()
         && DKViewIsInsideClass(hud, @"AWEAwemeDetailTableViewCell")
         && DKNavigationCameFromSearch(interaction);
 

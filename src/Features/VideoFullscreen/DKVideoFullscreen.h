@@ -24,6 +24,11 @@ extern "C" {
 /// 视频全屏总开关。首页、朋友页、好友聊天页、搜索页、其他用户作品页共用。
 BOOL DKVideoFullscreenOn(void);
 
+/// DYYY 已加载且其全屏开关开启时返回 YES；视频 frame/HUD 几何由 DYYY 单独负责。
+BOOL DKVideoGeometryOwnedByDYYY(void);
+/// 视频全屏几何由 DYKiller 负责；DYYY 已接管时为 NO。
+BOOL DKVideoGeometryOn(void);
+
 /// 评论区几何冻结是否生效：评论区液态玻璃开着时，视频与图文一律不许被缩放平移。
 BOOL DKCommentFreezeOn(void);
 

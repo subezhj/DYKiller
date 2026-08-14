@@ -24,6 +24,55 @@ static BOOL DKHideSearchTrendingBoardOn(void) {
     return DKPrefBool(DKKeyHideSearchTrendingBoard);
 }
 
+static BOOL DKHideSearchRecommendOn(void) {
+    return DKPrefBool(DKKeyHideSearchRecommend);
+}
+
+static char kDKRecommendHiddenKey;
+
+static UIView *DKRecommendSectionForLabel(UILabel *label) {
+    UIView *candidate = label;
+    UIView *root = label.superview;
+    for (NSUInteger i = 0; root && i < 6; i++, root = root.superview) {
+        CGFloat width = CGRectGetWidth(root.bounds);
+        CGFloat height = CGRectGetHeight(root.bounds);
+        if (width >= 300.0 && height >= 45.0 && height <= 320.0) {
+            candidate = root;
+            break;
+        }
+    }
+    return candidate == label ? label.superview : candidate;
+}
+
+static void DKSyncSearchRecommend(UIView *root) {
+    if (!root) return;
+    NSMutableArray<UIView *> *sections = [NSMutableArray array];
+    NSMutableArray<UIView *> *pending = [NSMutableArray arrayWithObject:root];
+    while (pending.count) {
+        UIView *view = pending.lastObject;
+        [pending removeLastObject];
+        if ([view isKindOfClass:UILabel.class]
+            && [((UILabel *)view).text isEqualToString:@"猜你想搜"]) {
+            UIView *section = DKRecommendSectionForLabel((UILabel *)view);
+            if (section && section != root) [sections addObject:section];
+        }
+        [pending addObjectsFromArray:view.subviews];
+    }
+    for (UIView *section in sections) {
+        if (DKHideSearchRecommendOn()) {
+            if (!objc_getAssociatedObject(section, &kDKRecommendHiddenKey)) {
+                objc_setAssociatedObject(section, &kDKRecommendHiddenKey, @(section.hidden),
+                                         OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            }
+            section.hidden = YES;
+        } else if (objc_getAssociatedObject(section, &kDKRecommendHiddenKey)) {
+            section.hidden = [objc_getAssociatedObject(section, &kDKRecommendHiddenKey) boolValue];
+            objc_setAssociatedObject(section, &kDKRecommendHiddenKey, nil,
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+    }
+}
+
 static BOOL DKShouldShowTab(id self, SEL cmd) {
     return DKHideSearchTrendingBoardOn() ? NO : gOrigShouldShowTab(self, cmd);
 }
@@ -92,6 +141,15 @@ static void DKSearchImageAdded(const struct mach_header *header, intptr_t slide)
     dispatch_async(dispatch_get_main_queue(), ^{ DKTryInstallSearchHooks(); });
 }
 
+%hook AWESearchMiddleFeedViewController
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    DKSyncSearchRecommend(self.viewIfLoaded);
+}
+
+%end
+
 %ctor {
     _dyld_register_func_for_add_image(DKSearchImageAdded);
     dispatch_async(dispatch_get_main_queue(), ^{ DKInstallSearchTrendingHooks(); });
@@ -101,6 +159,13 @@ static void DKSearchImageAdded(const struct mach_header *header, intptr_t slide)
             DKKeyHideSearchTrendingBoard,
             @"屏蔽搜索榜单",
             @"阻止抖音热榜、城市榜、直播榜等 Tab 及其 Lynx 资源加载；开启后重启抖音生效"
+        );
+    });
+    DKSettingsRegisterItem(@"搜索", ^AWESettingItemModel *{
+        return DKMakeSwitch(
+            DKKeyHideSearchRecommend,
+            @"屏蔽猜你想搜",
+            @"隐藏搜索中间页推荐词区域，不影响搜索输入联想和历史记录"
         );
     });
 }
