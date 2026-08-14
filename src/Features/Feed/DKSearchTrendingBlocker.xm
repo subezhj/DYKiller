@@ -59,10 +59,10 @@ static void DKInstallSearchTrendingHooks(void) {
     Method display = class_getInstanceMethod(cls, @selector(componentWillDisplay));
     if (!should || !size || !config || !display) return;
 
-    gOrigShouldShowTab = (void *)method_setImplementation(should, (IMP)DKShouldShowTab);
-    gOrigSizeWithModel = (void *)method_setImplementation(size, (IMP)DKSizeWithModel);
-    gOrigConfigUI = (void *)method_setImplementation(config, (IMP)DKConfigUI);
-    gOrigWillDisplay = (void *)method_setImplementation(display, (IMP)DKWillDisplay);
+    gOrigShouldShowTab = (BOOL (*)(id, SEL))method_setImplementation(should, (IMP)DKShouldShowTab);
+    gOrigSizeWithModel = (CGSize (*)(id, SEL, id, double))method_setImplementation(size, (IMP)DKSizeWithModel);
+    gOrigConfigUI = (void (*)(id, SEL))method_setImplementation(config, (IMP)DKConfigUI);
+    gOrigWillDisplay = (void (*)(id, SEL))method_setImplementation(display, (IMP)DKWillDisplay);
     gHooksInstalled = gOrigShouldShowTab && gOrigSizeWithModel && gOrigConfigUI && gOrigWillDisplay;
 }
 

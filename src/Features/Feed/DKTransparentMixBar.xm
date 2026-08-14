@@ -57,7 +57,7 @@ static void DKSyncMixBar(UIView *view) {
 
 - (void)layoutSubviews {
     %orig;
-    DKSyncMixBar(self);
+    DKSyncMixBar((UIView *)self);
 }
 
 %end
