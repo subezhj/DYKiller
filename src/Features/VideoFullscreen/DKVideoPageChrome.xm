@@ -428,7 +428,8 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 - (void)updateShrinkState:(BOOL)shrink insets:(UIEdgeInsets)insets animated:(BOOL)animated {
     // 抑制时一律不调 %orig：class-dump 把 insets 折叠成 (struct)，真实类型只能按参数名推断，
     // 不重新编组它就不依赖这个推断；放行走裸 %orig，Logos 原样透传实参。
-    if (shrink && (DKVideoFullscreenOn() || DKCommentFreezeOn())) return;
+    if (shrink && (DKVideoFullscreenOn() || DKCommentFreezeOn())
+        && !DKIsSearchDetailView(self.viewIfLoaded)) return;
     %orig;
 }
 
@@ -436,7 +437,8 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
                    insets:(UIEdgeInsets)insets
                  animated:(BOOL)animated
         animationDuration:(double)duration {
-    if (shrink && (DKVideoFullscreenOn() || DKCommentFreezeOn())) return;
+    if (shrink && (DKVideoFullscreenOn() || DKCommentFreezeOn())
+        && !DKIsSearchDetailView(self.viewIfLoaded)) return;
     %orig;
 }
 
@@ -585,8 +587,10 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    DKHUDStatusBarCoverSync(self);
-    DKSyncSearchDetailChrome(self);
+    if (!DKIsSearchDetailView(self.viewIfLoaded)) {
+        DKHUDStatusBarCoverSync(self);
+        DKSyncSearchDetailChrome(self);
+    }
 }
 
 %end

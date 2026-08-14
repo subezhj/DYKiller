@@ -29,48 +29,103 @@ static BOOL DKHideSearchRecommendOn(void) {
 }
 
 static char kDKRecommendHiddenKey;
+static char kDKRecommendInteractionKey;
+static char kDKRecommendFrameKey;
+static char kDKRecommendRetainedHeightKey;
 
-static UIView *DKRecommendSectionForLabel(UILabel *label) {
-    UIView *candidate = label;
-    UIView *root = label.superview;
-    for (NSUInteger i = 0; root && i < 6; i++, root = root.superview) {
-        CGFloat width = CGRectGetWidth(root.bounds);
-        CGFloat height = CGRectGetHeight(root.bounds);
-        if (width >= 300.0 && height >= 45.0 && height <= 320.0) {
-            candidate = root;
-            break;
-        }
-    }
-    return candidate == label ? label.superview : candidate;
-}
-
-static void DKSyncSearchRecommend(UIView *root) {
-    if (!root) return;
-    NSMutableArray<UIView *> *sections = [NSMutableArray array];
+static UIView *DKRecommendLynxRoot(UIView *root, UIView **history, UIView **recommend) {
+    NSString *lynxClass = @"UILynxView";
     NSMutableArray<UIView *> *pending = [NSMutableArray arrayWithObject:root];
     while (pending.count) {
         UIView *view = pending.lastObject;
         [pending removeLastObject];
-        if ([view isKindOfClass:UILabel.class]
-            && [((UILabel *)view).text isEqualToString:@"猜你想搜"]) {
-            UIView *section = DKRecommendSectionForLabel((UILabel *)view);
-            if (section && section != root) [sections addObject:section];
+        NSMutableArray<UIView *> *fullWidth = [NSMutableArray array];
+        CGFloat width = CGRectGetWidth(view.bounds);
+        for (UIView *child in view.subviews) {
+            if ([NSStringFromClass(child.class) isEqualToString:lynxClass]
+                && fabs(CGRectGetMinX(child.frame)) <= 1.0
+                && fabs(CGRectGetWidth(child.frame) - width) <= 1.0
+                && CGRectGetHeight(child.bounds) > 40.0) {
+                [fullWidth addObject:child];
+            }
+        }
+        if (fullWidth.count == 2) {
+            [fullWidth sortUsingComparator:^NSComparisonResult(UIView *a, UIView *b) {
+                return CGRectGetMinY(a.frame) < CGRectGetMinY(b.frame)
+                    ? NSOrderedAscending : NSOrderedDescending;
+            }];
+            UIView *first = fullWidth[0];
+            UIView *second = fullWidth[1];
+            if (fabs(CGRectGetMinY(first.frame)) <= 1.0
+                && fabs(CGRectGetMinY(second.frame) - CGRectGetMaxY(first.frame)) <= 1.0) {
+                if (history) *history = first;
+                if (recommend) *recommend = second;
+                return view;
+            }
         }
         [pending addObjectsFromArray:view.subviews];
     }
-    for (UIView *section in sections) {
-        if (DKHideSearchRecommendOn()) {
-            if (!objc_getAssociatedObject(section, &kDKRecommendHiddenKey)) {
-                objc_setAssociatedObject(section, &kDKRecommendHiddenKey, @(section.hidden),
-                                         OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-            }
-            section.hidden = YES;
-        } else if (objc_getAssociatedObject(section, &kDKRecommendHiddenKey)) {
-            section.hidden = [objc_getAssociatedObject(section, &kDKRecommendHiddenKey) boolValue];
-            objc_setAssociatedObject(section, &kDKRecommendHiddenKey, nil,
-                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        }
+    return nil;
+}
+
+static void DKSetRecommendFrame(UIView *view, CGRect frame) {
+    if (!objc_getAssociatedObject(view, &kDKRecommendFrameKey)) {
+        objc_setAssociatedObject(view, &kDKRecommendFrameKey,
+                                 [NSValue valueWithCGRect:view.frame],
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
+    if (!CGRectEqualToRect(view.frame, frame)) view.frame = frame;
+}
+
+static void DKSyncSearchRecommendCell(UIView *cell) {
+    UIView *history = nil;
+    UIView *recommend = nil;
+    UIView *lynxRoot = DKRecommendLynxRoot(cell, &history, &recommend);
+    if (!lynxRoot || !history || !recommend) return;
+
+    if (!DKHideSearchRecommendOn()) {
+        objc_setAssociatedObject(cell, &kDKRecommendRetainedHeightKey, nil,
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+        NSNumber *hidden = objc_getAssociatedObject(recommend, &kDKRecommendHiddenKey);
+        NSNumber *interaction = objc_getAssociatedObject(recommend, &kDKRecommendInteractionKey);
+        if (hidden) recommend.hidden = hidden.boolValue;
+        if (interaction) recommend.userInteractionEnabled = interaction.boolValue;
+        objc_setAssociatedObject(recommend, &kDKRecommendHiddenKey, nil,
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(recommend, &kDKRecommendInteractionKey, nil,
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        for (UIView *view = lynxRoot; view; view = view.superview) {
+            NSValue *stored = objc_getAssociatedObject(view, &kDKRecommendFrameKey);
+            if (stored) view.frame = stored.CGRectValue;
+            objc_setAssociatedObject(view, &kDKRecommendFrameKey, nil,
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            if (view == cell) break;
+        }
+        return;
+    }
+
+    if (!objc_getAssociatedObject(recommend, &kDKRecommendHiddenKey)) {
+        objc_setAssociatedObject(recommend, &kDKRecommendHiddenKey, @(recommend.hidden),
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(recommend, &kDKRecommendInteractionKey,
+                                 @(recommend.userInteractionEnabled),
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    recommend.hidden = YES;
+    recommend.userInteractionEnabled = NO;
+
+    CGFloat retainedHeight = CGRectGetMaxY(history.frame);
+    objc_setAssociatedObject(cell, &kDKRecommendRetainedHeightKey, @(retainedHeight),
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    for (UIView *view = lynxRoot; view && view != cell; view = view.superview) {
+        CGRect frame = view.frame;
+        frame.size.height = retainedHeight;
+        DKSetRecommendFrame(view, frame);
+    }
+    CGRect cellFrame = cell.frame;
+    cellFrame.size.height = retainedHeight;
+    DKSetRecommendFrame(cell, cellFrame);
 }
 
 static BOOL DKShouldShowTab(id self, SEL cmd) {
@@ -141,11 +196,24 @@ static void DKSearchImageAdded(const struct mach_header *header, intptr_t slide)
     dispatch_async(dispatch_get_main_queue(), ^{ DKTryInstallSearchHooks(); });
 }
 
-%hook AWESearchMiddleFeedViewController
+%hook CachalotCommonCollectionViewCell
 
-- (void)viewDidLayoutSubviews {
+- (void)applyLayoutAttributes:(UICollectionViewLayoutAttributes *)attributes {
+    NSNumber *height = objc_getAssociatedObject(self, &kDKRecommendRetainedHeightKey);
+    if (!height || !DKHideSearchRecommendOn()) {
+        %orig;
+        return;
+    }
+    UICollectionViewLayoutAttributes *adjusted = [attributes copy];
+    CGRect frame = adjusted.frame;
+    frame.size.height = height.doubleValue;
+    adjusted.frame = frame;
+    %orig(adjusted);
+}
+
+- (void)layoutSubviews {
     %orig;
-    DKSyncSearchRecommend([(UIViewController *)self viewIfLoaded]);
+    DKSyncSearchRecommendCell((UIView *)self);
 }
 
 %end

@@ -28,6 +28,8 @@ BOOL DKVideoFullscreenOn(void);
 BOOL DKVideoGeometryOwnedByDYYY(void);
 /// 视频全屏几何由 DYKiller 负责；DYYY 已接管时为 NO。
 BOOL DKVideoGeometryOn(void);
+/// 搜索结果详情页不由 DYKiller 视频全屏接管，避免与宿主/DYYY布局互相争抢。
+BOOL DKIsSearchDetailView(UIView *view);
 
 /// 评论区几何冻结是否生效：评论区液态玻璃开着时，视频与图文一律不许被缩放平移。
 BOOL DKCommentFreezeOn(void);

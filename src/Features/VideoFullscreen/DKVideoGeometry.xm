@@ -58,6 +58,27 @@ BOOL DKVideoGeometryOwnedByDYYY(void) {
         && [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableFullScreen"];
 }
 
+BOOL DKIsSearchDetailView(UIView *view) {
+    if (!view) return NO;
+    BOOL inDetail = NO;
+    for (UIView *ancestor = view; ancestor; ancestor = ancestor.superview) {
+        if ([ancestor.nextResponder isKindOfClass:NSClassFromString(@"AWEAwemeDetailTableViewController")]) {
+            inDetail = YES;
+            break;
+        }
+    }
+    if (!inDetail) return NO;
+    Class searchClass = NSClassFromString(@"AWESearchViewController");
+    for (UIResponder *responder = view.nextResponder; responder; responder = responder.nextResponder) {
+        if (![responder isKindOfClass:UIViewController.class]) continue;
+        UIViewController *controller = (UIViewController *)responder;
+        for (UIViewController *entry in controller.navigationController.viewControllers) {
+            if ([entry isKindOfClass:searchClass]) return YES;
+        }
+    }
+    return NO;
+}
+
 BOOL DKVideoGeometryOn(void) {
     return DKVideoFullscreenOn() && !DKVideoGeometryOwnedByDYYY();
 }
@@ -132,6 +153,7 @@ CGRect DKVideoContainerTargetFrame(UIView *view) {
     // 评论面板那条画中画因此改为直接关掉功能本身，见 Comment/DKCommentFullBackdrop.xm。
     UIWindow *window = view.window;
     if (window && window.windowLevel != UIWindowLevelNormal) return CGRectNull;
+    if (DKIsSearchDetailView(view)) return CGRectNull;
 
     UIView *parent = view.superview;
     CGFloat width = CGRectGetWidth(parent.bounds);
