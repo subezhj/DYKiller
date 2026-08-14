@@ -11,6 +11,7 @@
 #import "DouyinHeaders.h"
 #import "DKVideoFullscreen.h"
 #import "DKVideoFeedTable.h"
+#import "DKKeys.h"
 #import "DKUtils.h"
 #import <objc/runtime.h>
 #import <math.h>
