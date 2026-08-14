@@ -566,15 +566,22 @@ static UIView *DKGlassFindPlatter(UIView *root) {
 static char kDKOuterBackgroundHiddenKey;
 static char kDKSkinOriginalHiddenKey;
 
-static void DKGlassSyncSkinViews(AWENormalModeTabBar *bar, BOOL visible) {
-    for (UIView *subview in bar.subviews) {
-        if (![NSStringFromClass(subview.class) isEqualToString:@"AWETabBarSkinView"]) continue;
-        if (!objc_getAssociatedObject(subview, &kDKSkinOriginalHiddenKey)) {
-            objc_setAssociatedObject(subview, &kDKSkinOriginalHiddenKey, @(subview.hidden),
+static void DKGlassSyncSkinViewsInTree(UIView *view, BOOL visible) {
+    if ([NSStringFromClass(view.class) isEqualToString:@"AWETabBarSkinView"]) {
+        if (!objc_getAssociatedObject(view, &kDKSkinOriginalHiddenKey)) {
+            objc_setAssociatedObject(view, &kDKSkinOriginalHiddenKey, @(view.hidden),
                                      OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         }
-        subview.hidden = visible ? [objc_getAssociatedObject(subview, &kDKSkinOriginalHiddenKey) boolValue] : YES;
+        view.hidden = visible ? [objc_getAssociatedObject(view, &kDKSkinOriginalHiddenKey) boolValue] : YES;
     }
+    for (UIView *subview in view.subviews) {
+        if (subview == gBar || subview == gPlusKey) continue;
+        DKGlassSyncSkinViewsInTree(subview, visible);
+    }
+}
+
+static void DKGlassSyncSkinViews(AWENormalModeTabBar *bar, BOOL visible) {
+    DKGlassSyncSkinViewsInTree(bar, visible);
 }
 
 static void DKGlassApplyTransparentBarBackground(UITabBar *bar) {
