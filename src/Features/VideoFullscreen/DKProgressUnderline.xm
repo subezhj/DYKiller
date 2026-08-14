@@ -17,6 +17,34 @@ static const CGFloat kDKUnderlineTolerance = 0.5;
 
 static char kDKUnderlineColorKey;
 static char kDKUnderlineOpaqueKey;
+static char kDKProgressHiddenKey;
+
+// 39.8 video 页新增的 200pt 播放进度层。只匹配该层内的滑块，避免误伤故事分段条。
+static BOOL DKIsVideoProgressSlider(UIView *view) {
+    for (UIView *ancestor = view.superview; ancestor; ancestor = ancestor.superview) {
+        if ([ancestor isKindOfClass:NSClassFromString(@"AWEDPlayerProgressContainerView")]) {
+            return YES;
+        }
+        if (ancestor == view.window) break;
+    }
+    return NO;
+}
+
+static void DKHideVideoProgressSlider(UIView *view) {
+    if (!objc_getAssociatedObject(view, &kDKProgressHiddenKey)) {
+        objc_setAssociatedObject(view, &kDKProgressHiddenKey, @(view.hidden),
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    view.hidden = YES;
+}
+
+static void DKRestoreVideoProgressSlider(UIView *view) {
+    id original = objc_getAssociatedObject(view, &kDKProgressHiddenKey);
+    if (!original) return;
+    view.hidden = [original boolValue];
+    objc_setAssociatedObject(view, &kDKProgressHiddenKey, nil,
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
 
 // 签名：容器直属 + 普通 UIView + 满宽 + 极薄 + 底色不透明。
 //
@@ -77,6 +105,32 @@ static void DKRestoreUnderline(UIView *view) {
             DKClearUnderline(view);
         }
     }
+}
+
+%end
+
+%hook AWEFeedProgressSlider
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKVideoFullscreenOn() && DKIsVideoProgressSlider(self)) {
+        DKHideVideoProgressSlider(self);
+    } else {
+        DKRestoreVideoProgressSlider(self);
+    }
+}
+
+- (void)setHidden:(BOOL)hidden {
+    if (DKVideoFullscreenOn() && DKIsVideoProgressSlider(self)) {
+        %orig(YES);
+        return;
+    }
+    %orig(hidden);
+}
+
+- (id)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    if (DKVideoFullscreenOn() && DKIsVideoProgressSlider(self)) return nil;
+    return %orig;
 }
 
 %end

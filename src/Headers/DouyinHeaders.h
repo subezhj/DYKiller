@@ -57,6 +57,9 @@
 @interface AWEDPlayerProgressContainerView : UIView                // 进度条容器；底边压着一条纯黑细条
 @end
 
+@interface AWEFeedProgressSlider : UIView                              // video 页新增的播放进度滑块
+@end
+
 @interface AWEGradientView : UIView                                // HUD 可读性压暗渐变
 @end
 
