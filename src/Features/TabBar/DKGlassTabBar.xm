@@ -563,6 +563,8 @@ static UIView *DKGlassFindPlatter(UIView *root) {
     return nil;
 }
 
+static char kDKOuterBackgroundHiddenKey;
+
 static void DKGlassApplyTransparentBarBackground(UITabBar *bar) {
     UITabBarAppearance *appearance = [[UITabBarAppearance alloc] init];
     [appearance configureWithTransparentBackground];
@@ -571,6 +573,25 @@ static void DKGlassApplyTransparentBarBackground(UITabBar *bar) {
     appearance.shadowColor = UIColor.clearColor;
     bar.standardAppearance = appearance;
     bar.scrollEdgeAppearance = appearance;
+    bar.translucent = YES;
+    bar.backgroundColor = UIColor.clearColor;
+    bar.layer.backgroundColor = UIColor.clearColor.CGColor;
+
+    // iOS 26 floating provider 在部分页面仍会留下全幅背景子层；只隐藏
+    // _UIBarBackground/UIVisualEffectView 等外层，保留 platter 胶囊和按钮树。
+    for (UIView *subview in bar.subviews) {
+        NSString *name = NSStringFromClass(subview.class);
+        BOOL isPlatter = [name containsString:kDKPlatterClass];
+        BOOL isOuterBackground = [name containsString:@"BarBackground"]
+            || [subview isKindOfClass:UIVisualEffectView.class];
+        if (isOuterBackground && !isPlatter) {
+            if (!objc_getAssociatedObject(subview, &kDKOuterBackgroundHiddenKey)) {
+                objc_setAssociatedObject(subview, &kDKOuterBackgroundHiddenKey,
+                                         @(subview.hidden), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            }
+            subview.hidden = YES;
+        }
+    }
 }
 
 // 胶囊让出右侧一块，圆键补上。几何全部从 platter 实测：直径取它的高、纵向与它对齐、
