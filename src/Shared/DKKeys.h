@@ -17,6 +17,8 @@
 
 // 首页、朋友页、好友聊天页、搜索页、其他用户作品页统一由这一个开关控制。
 static NSString *const DKKeyVideoFullscreen = @"DYKillerVideoFullscreen";
+// 隐藏视频播放进度条但保留拖动热区；未写入时默认开启。
+static NSString *const DKKeyHideVideoProgress = @"DYKillerHideVideoProgress";
 
 #pragma mark - 功能组：评论区
 
@@ -58,6 +60,8 @@ static NSString *const DKKeyAudioVizStyle = @"DYKillerAudioVizStyle";
 static NSString *const DKKeyDetailHideBottomBar = @"DYKillerHideChatVideoBottomBar";
 static NSString *const DKKeyHideFollowButton     = @"DYKillerHideFollowButton";
 static NSString *const DKKeyHideMusicInfo        = @"DYKillerHideMusicInfo";
+// 只隐藏右下角音乐按钮上的“拍同款/听抖音”等引导文字，保留按钮本体。
+static NSString *const DKKeyHideMusicButtonText  = @"DYKillerHideMusicButtonText";
 
 #pragma mark - 功能组：个人主页
 

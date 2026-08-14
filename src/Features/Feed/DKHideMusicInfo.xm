@@ -21,10 +21,36 @@
 
 %end
 
+static void DKSyncMusicButtonText(UILabel *label) {
+    if (label) label.hidden = DKPrefBool(DKKeyHideMusicButtonText);
+}
+
+%hook AWEMusicCoverButton
+
+- (void)layoutSubviews {
+    %orig;
+    DKSyncMusicButtonText(self.guidanceLabel);
+}
+
+%end
+
+%hook AWEPlayInteractionSingleSongMusicStyleView
+
+- (void)layoutSubviews {
+    %orig;
+    DKSyncMusicButtonText(self.listenTitleLabel);
+    DKSyncMusicButtonText(self.playInteractionLabel);
+}
+
+%end
+
 #pragma mark - 设置项注册
 
 %ctor {
     DKSettingsRegisterItem(@"播放体验", ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyHideMusicInfo, @"移除文案下方\"去汽水听\"", @"隐藏视频底部的音乐信息栏（含汽水音乐引导和歌曲名）");
+    });
+    DKSettingsRegisterItem(@"播放体验", ^AWESettingItemModel *{
+        return DKMakeSwitch(DKKeyHideMusicButtonText, @"隐藏音乐按钮文字", @"隐藏右下角音乐按钮上的“拍同款”“听抖音”等文字，保留按钮本体");
     });
 }

@@ -8,6 +8,8 @@
 
 #import "DKVideoFullscreen.h"
 #import "DouyinHeaders.h"
+#import "DKKeys.h"
+#import "DKSettings.h"
 #import "DKUtils.h"
 #import <objc/runtime.h>
 #import <math.h>
@@ -17,7 +19,14 @@ static const CGFloat kDKUnderlineTolerance = 0.5;
 
 static char kDKUnderlineColorKey;
 static char kDKUnderlineOpaqueKey;
-static char kDKProgressHiddenKey;
+static char kDKProgressOpacityKey;
+
+static BOOL DKHideVideoProgressOn(void) {
+    NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+    return [defaults objectForKey:DKKeyHideVideoProgress]
+        ? [defaults boolForKey:DKKeyHideVideoProgress]
+        : YES;
+}
 
 // 39.8 video 页新增的 200pt 播放进度层。只匹配该层内的滑块，避免误伤故事分段条。
 static BOOL DKIsVideoProgressSlider(UIView *view) {
@@ -31,18 +40,18 @@ static BOOL DKIsVideoProgressSlider(UIView *view) {
 }
 
 static void DKHideVideoProgressSlider(UIView *view) {
-    if (!objc_getAssociatedObject(view, &kDKProgressHiddenKey)) {
-        objc_setAssociatedObject(view, &kDKProgressHiddenKey, @(view.hidden),
+    if (!objc_getAssociatedObject(view, &kDKProgressOpacityKey)) {
+        objc_setAssociatedObject(view, &kDKProgressOpacityKey, @(view.layer.opacity),
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    view.hidden = YES;
+    view.layer.opacity = 0.0f;
 }
 
 static void DKRestoreVideoProgressSlider(UIView *view) {
-    id original = objc_getAssociatedObject(view, &kDKProgressHiddenKey);
+    NSNumber *original = objc_getAssociatedObject(view, &kDKProgressOpacityKey);
     if (!original) return;
-    view.hidden = [original boolValue];
-    objc_setAssociatedObject(view, &kDKProgressHiddenKey, nil,
+    view.layer.opacity = original.floatValue;
+    objc_setAssociatedObject(view, &kDKProgressOpacityKey, nil,
                              OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
@@ -113,24 +122,27 @@ static void DKRestoreUnderline(UIView *view) {
 
 - (void)layoutSubviews {
     %orig;
-    if (DKVideoFullscreenOn() && DKIsVideoProgressSlider(self)) {
+    if (DKHideVideoProgressOn() && DKIsVideoProgressSlider(self)) {
         DKHideVideoProgressSlider(self);
     } else {
         DKRestoreVideoProgressSlider(self);
     }
 }
 
-- (void)setHidden:(BOOL)hidden {
-    if (DKVideoFullscreenOn() && DKIsVideoProgressSlider(self)) {
-        %orig(YES);
-        return;
-    }
-    %orig(hidden);
-}
-
-- (id)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
-    if (DKVideoFullscreenOn() && DKIsVideoProgressSlider(self)) return nil;
-    return %orig;
-}
-
 %end
+
+#pragma mark - 设置项注册
+
+%ctor {
+    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+        AWESettingItemModel *item = DKMakeSwitch(
+            DKKeyHideVideoProgress,
+            @"隐藏视频进度条",
+            @"隐藏进度条画面但保留原触摸热区，可继续拖动调节视频进度"
+        );
+        if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyHideVideoProgress]) {
+            item.isSwitchOn = YES;
+        }
+        return item;
+    });
+}

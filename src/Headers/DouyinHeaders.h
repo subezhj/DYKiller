@@ -60,6 +60,21 @@
 @interface AWEFeedProgressSlider : UIView                              // video 页新增的播放进度滑块
 @end
 
+@interface AWEElementStackView : UIView                                // HUD 左侧文案栈与右侧按钮栈
+@end
+
+@interface AWEPlayInteractionDescriptionLabel : UILabel                // 左侧视频文案
+@end
+
+@interface AWEMusicCoverButton : UIButton                               // 右下角音乐封面按钮
+@property (nonatomic, strong) UILabel *guidanceLabel;
+@end
+
+@interface AWEPlayInteractionSingleSongMusicStyleView : UIView
+@property (nonatomic, strong) UILabel *listenTitleLabel;
+@property (nonatomic, strong) UILabel *playInteractionLabel;
+@end
+
 @interface AWEGradientView : UIView                                // HUD 可读性压暗渐变
 @end
 
