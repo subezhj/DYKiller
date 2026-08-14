@@ -244,6 +244,8 @@ static char kDKCaptionShadowOpacityKey;
 static char kDKCaptionShadowRadiusKey;
 static char kDKCaptionShadowOffsetKey;
 static char kDKCaptionShadowColorKey;
+static char kDKSearchChromeFrameKey;
+static char kDKSearchChromeAppliedFrameKey;
 static char kDKLiveChromeTransformKey;
 
 // center/bounds/anchorPoint 不受 transform 影响，可据此还原应用 transform 前的几何。
@@ -511,6 +513,68 @@ void DKHUDStatusBarCoverSync(UIViewController *interaction) {
     }
 }
 
+static BOOL DKViewIsInsideClass(UIView *view, NSString *className) {
+    Class cls = NSClassFromString(className);
+    for (UIView *ancestor = view.superview; ancestor; ancestor = ancestor.superview) {
+        if ([ancestor isKindOfClass:cls]) return YES;
+    }
+    return NO;
+}
+
+static BOOL DKNavigationCameFromSearch(UIViewController *controller) {
+    Class searchClass = NSClassFromString(@"AWESearchViewController");
+    for (UIViewController *entry in controller.navigationController.viewControllers) {
+        if ([entry isKindOfClass:searchClass]) return YES;
+    }
+    return NO;
+}
+
+static void DKSyncSearchDetailChrome(UIViewController *interaction) {
+    UIView *hud = interaction.viewIfLoaded;
+    Class stackClass = NSClassFromString(@"AWEElementStackView");
+    if (!hud || !stackClass) return;
+    BOOL active = DKVideoFullscreenOn()
+        && DKViewIsInsideClass(hud, @"AWEAwemeDetailTableViewCell")
+        && DKNavigationCameFromSearch(interaction);
+
+    CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 0.0;
+    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - safeBottom;
+    for (UIView *view in hud.subviews) {
+        if (![view isKindOfClass:stackClass]) continue;
+        CGFloat width = CGRectGetWidth(view.bounds);
+        CGFloat height = CGRectGetHeight(view.bounds);
+        if (height < 40.0 || (width < 200.0 && width > 100.0)) continue;
+
+        NSValue *stored = objc_getAssociatedObject(view, &kDKSearchChromeFrameKey);
+        NSValue *lastApplied = objc_getAssociatedObject(view, &kDKSearchChromeAppliedFrameKey);
+        if (!active) {
+            if (stored) {
+                view.frame = stored.CGRectValue;
+                objc_setAssociatedObject(view, &kDKSearchChromeFrameKey, nil,
+                                         OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                objc_setAssociatedObject(view, &kDKSearchChromeAppliedFrameKey, nil,
+                                         OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            }
+            continue;
+        }
+        CGRect nativeFrame = stored ? stored.CGRectValue : view.frame;
+        if (!stored || (lastApplied && !CGRectEqualToRect(view.frame, lastApplied.CGRectValue))) {
+            nativeFrame = view.frame;
+            objc_setAssociatedObject(view, &kDKSearchChromeFrameKey,
+                                     [NSValue valueWithCGRect:nativeFrame],
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        CGFloat delta = targetBottom - CGRectGetMaxY(nativeFrame);
+        if (delta <= kDKSignatureTolerance) continue;
+        CGRect adjusted = nativeFrame;
+        adjusted.origin.y += delta;
+        objc_setAssociatedObject(view, &kDKSearchChromeAppliedFrameKey,
+                                 [NSValue valueWithCGRect:adjusted],
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        if (!CGRectEqualToRect(view.frame, adjusted)) view.frame = adjusted;
+    }
+}
+
 // DKVideoFeedTable.xm 也在同一个方法上挂了一层（HUD 高度的布局后补正），两处分属两个功能、
 // 各自跟着自己的模块走，串联生效，互不依赖。
 %hook AWEPlayInteractionViewController
@@ -518,6 +582,7 @@ void DKHUDStatusBarCoverSync(UIViewController *interaction) {
 - (void)viewDidLayoutSubviews {
     %orig;
     DKHUDStatusBarCoverSync(self);
+    DKSyncSearchDetailChrome(self);
 }
 
 %end
