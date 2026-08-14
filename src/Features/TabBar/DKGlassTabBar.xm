@@ -564,6 +564,18 @@ static UIView *DKGlassFindPlatter(UIView *root) {
 }
 
 static char kDKOuterBackgroundHiddenKey;
+static char kDKSkinOriginalHiddenKey;
+
+static void DKGlassSyncSkinViews(AWENormalModeTabBar *bar, BOOL visible) {
+    for (UIView *subview in bar.subviews) {
+        if (![NSStringFromClass(subview.class) isEqualToString:@"AWETabBarSkinView"]) continue;
+        if (!objc_getAssociatedObject(subview, &kDKSkinOriginalHiddenKey)) {
+            objc_setAssociatedObject(subview, &kDKSkinOriginalHiddenKey, @(subview.hidden),
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        subview.hidden = visible ? [objc_getAssociatedObject(subview, &kDKSkinOriginalHiddenKey) boolValue] : YES;
+    }
+}
 
 static void DKGlassApplyTransparentBarBackground(UITabBar *bar) {
     UITabBarAppearance *appearance = [[UITabBarAppearance alloc] init];
@@ -673,6 +685,7 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
     if (!DKGlassTabBarEnabled()) {
         if (!gBar) return;
         DKGlassSetDouyinContentVisible(douyinBar, buttons, YES);
+        DKGlassSyncSkinViews(douyinBar, YES);
         [gBar removeFromSuperview];
         [gPlusKey removeFromSuperview];
         gBar = nil;
@@ -722,6 +735,7 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
     DKGlassSyncItems(controller, buttons);
     DKGlassLayoutGlass(douyinBar);
     DKGlassSetDouyinContentVisible(douyinBar, buttons, NO);
+    DKGlassSyncSkinViews(douyinBar, NO);
     // 放在最后：可视化的环绕轮廓要用 DKGlassLayoutGlass 刚算完的胶囊与圆键几何。
     DKAudioVisualizerLayout(douyinBar);
 }
