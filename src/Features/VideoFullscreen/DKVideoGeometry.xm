@@ -191,4 +191,14 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
         };
         return item;
     });
+    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+        if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoCaptionContrast]) {
+            [NSUserDefaults.standardUserDefaults setInteger:2 forKey:DKKeyVideoCaptionContrast];
+        }
+        return DKMakeChoice(
+            DKKeyVideoCaptionContrast,
+            @"视频文案可读性",
+            @[ @"关闭", @"轻", @"标准", @"强" ]
+        );
+    });
 }

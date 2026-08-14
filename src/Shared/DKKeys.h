@@ -19,6 +19,8 @@
 static NSString *const DKKeyVideoFullscreen = @"DYKillerVideoFullscreen";
 // 隐藏视频播放进度条但保留拖动热区；未写入时默认开启。
 static NSString *const DKKeyHideVideoProgress = @"DYKillerHideVideoProgress";
+// 0 关闭 / 1 轻 / 2 标准 / 3 强。
+static NSString *const DKKeyVideoCaptionContrast = @"DYKillerVideoCaptionContrast";
 
 #pragma mark - 功能组：评论区
 
@@ -27,6 +29,8 @@ static NSString *const DKKeyCommentMediaCleanBottomBar = @"DYKillerCommentMediaC
 static NSString *const DKKeyCommentGlass         = @"DYKillerCommentGlass";
 // 只在评论玻璃总开关开启时生效；默认关闭即使用系统 Regular 材质。
 static NSString *const DKKeyCommentGlassClear    = @"DYKillerCommentGlassClear";
+// 0 默认 / 1 12pt / 2 20pt / 3 28pt / 4 36pt。
+static NSString *const DKKeyCommentTopRadius     = @"DYKillerCommentTopRadius";
 
 #pragma mark - 功能组：分享
 

@@ -59,6 +59,10 @@ static char kCoverOriginalColorKey;    // 满幅遮盖层：抖音写的底色
 static char kGlassClearModeKey;         // 玻璃：当前 effect 是否按 Clear 构造
 static char kGlassStyleKey;             // 玻璃：当前 effect 对应的场景外观
 static char kGlassMaterializingKey;     // 玻璃：已排入 materialize，防止重复排队
+static char kPanelRadiusKey;            // 面板：抖音原始 cornerRadius
+static char kPanelMasksKey;             // 面板：抖音原始 masksToBounds
+static char kPanelCornersKey;           // 面板：抖音原始 maskedCorners
+static char kPanelCurveKey;             // 面板：抖音原始 cornerCurve
 
 // 本次会话是否接管过槽位。开关一直关着的用户不必为每帧的查找与还原付出代价。
 static BOOL gEverAttached = NO;
@@ -237,6 +241,47 @@ static void DKCollectSlotCandidates(UIView *view, NSUInteger depth, NSMutableArr
 static UIView *DKPanelSlot(UIViewController *controller) {
     UIViewController *inner = DKChildControllerNamed(controller, kDKInnerControllerClass);
     return inner.isViewLoaded ? inner.view : nil;
+}
+
+static CGFloat DKConfiguredPanelRadius(void) {
+    static const CGFloat values[] = { 0.0, 12.0, 20.0, 28.0, 36.0 };
+    NSInteger choice = DKPrefInteger(DKKeyCommentTopRadius);
+    if (choice < 0 || choice >= (NSInteger)(sizeof(values) / sizeof(values[0]))) choice = 0;
+    return values[choice];
+}
+
+static void DKSyncPanelRadius(UIView *panel) {
+    if (!panel) return;
+    CGFloat radius = DKConfiguredPanelRadius();
+    NSNumber *originalRadius = objc_getAssociatedObject(panel, &kPanelRadiusKey);
+
+    if (radius <= 0.0) {
+        if (!originalRadius) return;
+        panel.layer.cornerRadius = originalRadius.doubleValue;
+        panel.layer.masksToBounds = [objc_getAssociatedObject(panel, &kPanelMasksKey) boolValue];
+        panel.layer.maskedCorners = [objc_getAssociatedObject(panel, &kPanelCornersKey) unsignedIntegerValue];
+        panel.layer.cornerCurve = objc_getAssociatedObject(panel, &kPanelCurveKey);
+        objc_setAssociatedObject(panel, &kPanelRadiusKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(panel, &kPanelMasksKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(panel, &kPanelCornersKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(panel, &kPanelCurveKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        return;
+    }
+
+    if (!originalRadius) {
+        objc_setAssociatedObject(panel, &kPanelRadiusKey, @(panel.layer.cornerRadius),
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(panel, &kPanelMasksKey, @(panel.layer.masksToBounds),
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(panel, &kPanelCornersKey, @(panel.layer.maskedCorners),
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(panel, &kPanelCurveKey, panel.layer.cornerCurve,
+                                 OBJC_ASSOCIATION_COPY_NONATOMIC);
+    }
+    panel.layer.cornerRadius = radius;
+    panel.layer.cornerCurve = kCACornerCurveContinuous;
+    panel.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
+    panel.layer.masksToBounds = YES;
 }
 
 static UIView *DKInputContainer(UIViewController *controller) {
@@ -478,10 +523,10 @@ static void DKMaterializeSlotGlass(UIView *slot, UIViewController *controller) A
 
 static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(26.0)) {
     BOOL enabled = DKCommentGlassEnabled();
-    if (!enabled && !gEverAttached) return;
-
     UIView *panel = DKPanelSlot(controller);
     if (!panel) return;
+    DKSyncPanelRadius(panel);
+    if (!enabled && !gEverAttached) return;
 
     UIView *inputContainer = DKInputContainer(controller);
 
@@ -581,6 +626,14 @@ static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(2
             DKKeyCommentGlass,
             @"评论区液态玻璃",
             @"把评论面板与输入框换成 iOS 26 系统液态玻璃；默认使用 Regular 自适应材质"
+        );
+    });
+
+    DKSettingsRegisterItem(@"评论区", ^AWESettingItemModel *{
+        return DKMakeChoice(
+            DKKeyCommentTopRadius,
+            @"评论区顶部圆角",
+            @[ @"抖音默认", @"12 pt", @"20 pt", @"28 pt", @"36 pt" ]
         );
     });
 

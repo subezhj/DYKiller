@@ -236,6 +236,11 @@ static char kDKRichClipKey;
 static char kDKKnowledgeTransformKey;
 static char kDKRichGradientTransformKey;
 static char kDKVideoGradientTransformKey;
+static char kDKCaptionGradientColorsKey;
+static char kDKCaptionGradientLocationsKey;
+static char kDKCaptionShadowOpacityKey;
+static char kDKCaptionShadowRadiusKey;
+static char kDKCaptionShadowOffsetKey;
 static char kDKLiveChromeTransformKey;
 
 // center/bounds/anchorPoint 不受 transform 影响，可据此还原应用 transform 前的几何。
@@ -536,6 +541,8 @@ static void DKAlignVideoCaptionBottom(UIViewController *interaction) {
     }
 }
 
+static void DKSyncCaptionShadow(UIView *root);
+
 // DKVideoFeedTable.xm 也在同一个方法上挂了一层（HUD 高度的布局后补正），两处分属两个功能、
 // 各自跟着自己的模块走，串联生效，互不依赖。
 %hook AWEPlayInteractionViewController
@@ -544,9 +551,65 @@ static void DKAlignVideoCaptionBottom(UIViewController *interaction) {
     %orig;
     DKHUDStatusBarCoverSync(self);
     DKAlignVideoCaptionBottom(self);
+    DKSyncCaptionShadow(self.viewIfLoaded);
 }
 
 %end
+
+static NSInteger DKCaptionContrastLevel(void) {
+    NSNumber *stored = [NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoCaptionContrast];
+    NSInteger level = stored ? stored.integerValue : 2;
+    return MAX(0, MIN(level, 3));
+}
+
+static void DKSyncCaptionShadow(UIView *root) {
+    Class captionClass = NSClassFromString(@"AWEPlayInteractionDescriptionLabel");
+    if (!root || !captionClass) return;
+    if ([root isKindOfClass:captionClass]) {
+        CALayer *layer = root.layer;
+        if (!objc_getAssociatedObject(root, &kDKCaptionShadowOpacityKey)) {
+            objc_setAssociatedObject(root, &kDKCaptionShadowOpacityKey, @(layer.shadowOpacity), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(root, &kDKCaptionShadowRadiusKey, @(layer.shadowRadius), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(root, &kDKCaptionShadowOffsetKey, [NSValue valueWithCGSize:layer.shadowOffset], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        NSInteger level = DKCaptionContrastLevel();
+        if (level == 0) {
+            layer.shadowOpacity = [objc_getAssociatedObject(root, &kDKCaptionShadowOpacityKey) floatValue];
+            layer.shadowRadius = [objc_getAssociatedObject(root, &kDKCaptionShadowRadiusKey) doubleValue];
+            layer.shadowOffset = [objc_getAssociatedObject(root, &kDKCaptionShadowOffsetKey) CGSizeValue];
+        } else {
+            layer.shadowColor = UIColor.blackColor.CGColor;
+            layer.shadowOpacity = 0.35f + 0.15f * level;
+            layer.shadowRadius = 1.0 + 0.5 * level;
+            layer.shadowOffset = CGSizeMake(0.0, 1.0);
+        }
+    }
+    for (UIView *subview in root.subviews) DKSyncCaptionShadow(subview);
+}
+
+static void DKEnhanceVideoBottomGradient(UIView *view) {
+    if (![view.layer isKindOfClass:CAGradientLayer.class]) return;
+    if (CGRectGetMinY(view.frame) <= 1.0 || CGRectGetHeight(view.bounds) < 150.0) return;
+    CAGradientLayer *gradient = (CAGradientLayer *)view.layer;
+    if (!objc_getAssociatedObject(view, &kDKCaptionGradientColorsKey)) {
+        objc_setAssociatedObject(view, &kDKCaptionGradientColorsKey, gradient.colors ?: @[], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(view, &kDKCaptionGradientLocationsKey, gradient.locations ?: @[], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    NSInteger level = DKCaptionContrastLevel();
+    if (level == 0) {
+        gradient.colors = objc_getAssociatedObject(view, &kDKCaptionGradientColorsKey);
+        gradient.locations = objc_getAssociatedObject(view, &kDKCaptionGradientLocationsKey);
+        return;
+    }
+    CGFloat middle = 0.16 + 0.06 * level;
+    CGFloat bottom = 0.48 + 0.10 * level;
+    gradient.colors = @[
+        (id)[UIColor colorWithWhite:0.0 alpha:0.0].CGColor,
+        (id)[UIColor colorWithWhite:0.0 alpha:middle].CGColor,
+        (id)[UIColor colorWithWhite:0.0 alpha:bottom].CGColor
+    ];
+    gradient.locations = @[ @0.0, @0.52, @1.0 ];
+}
 
 #pragma mark - 底部压暗渐变
 
@@ -560,8 +623,10 @@ static void DKAlignVideoCaptionBottom(UIViewController *interaction) {
 - (void)layoutSubviews {
     %orig;
 
-    // ① 视频：Merge 被钉得比父视图高时，容器内非贴底的压暗跟着撑满（旧逻辑，保留）。
     AWEDPlayerViewController_Merge *merge = DKMergeForView(self);
+    if (merge) DKEnhanceVideoBottomGradient(self);
+
+    // ① 视频：Merge 被钉得比父视图高时，容器内非贴底的压暗跟着撑满（旧逻辑，保留）。
     if (DKMergeIsStretchedTarget(merge)) {
         UIView *container = self.superview;
         CGFloat height = CGRectGetHeight(self.bounds);
