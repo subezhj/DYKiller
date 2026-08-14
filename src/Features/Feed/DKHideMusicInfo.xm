@@ -57,7 +57,7 @@ static void DKSyncMusicButtonTextTree(UIView *root) {
 
 - (void)layoutSubviews {
     %orig;
-    DKSyncMusicButtonTextTree(self);
+    DKSyncMusicButtonTextTree((UIView *)self);
 }
 
 %end
