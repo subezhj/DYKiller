@@ -71,6 +71,11 @@ static NSString *const DKKeyHideMusicButtonText  = @"DYKillerHideMusicButtonText
 
 static NSString *const DKKeyProfileHideUGCGuide = @"DYKillerHideProfileUGCGuide";
 
+#pragma mark - 功能组：搜索
+
+// 在搜索中间页创建前移除猜你喜欢/热榜 Tab，阻止对应 Lynx 榜单资源加载。
+static NSString *const DKKeyHideSearchTrendingBoard = @"DYKillerHideSearchTrendingBoard";
+
 #pragma mark - 功能组：调试工具
 
 static NSString *const DKKeyDebugInspectorEnabled = @"DYKillerDebugInspectorEnabled";
