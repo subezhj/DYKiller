@@ -239,9 +239,11 @@ static char kDKRichGradientTransformKey;
 static char kDKVideoGradientTransformKey;
 static char kDKCaptionGradientColorsKey;
 static char kDKCaptionGradientLocationsKey;
+static char kDKCaptionGradientLevelKey;
 static char kDKCaptionShadowOpacityKey;
 static char kDKCaptionShadowRadiusKey;
 static char kDKCaptionShadowOffsetKey;
+static char kDKCaptionShadowColorKey;
 static char kDKLiveChromeTransformKey;
 
 // center/bounds/anchorPoint 不受 transform 影响，可据此还原应用 transform 前的几何。
@@ -509,8 +511,6 @@ void DKHUDStatusBarCoverSync(UIViewController *interaction) {
     }
 }
 
-static void DKSyncCaptionShadow(UIView *root);
-
 // DKVideoFeedTable.xm 也在同一个方法上挂了一层（HUD 高度的布局后补正），两处分属两个功能、
 // 各自跟着自己的模块走，串联生效，互不依赖。
 %hook AWEPlayInteractionViewController
@@ -518,7 +518,6 @@ static void DKSyncCaptionShadow(UIView *root);
 - (void)viewDidLayoutSubviews {
     %orig;
     DKHUDStatusBarCoverSync(self);
-    DKSyncCaptionShadow(self.viewIfLoaded);
 }
 
 %end
@@ -529,30 +528,42 @@ static NSInteger DKCaptionContrastLevel(void) {
     return MAX(0, MIN(level, 3));
 }
 
-static void DKSyncCaptionShadow(UIView *root) {
-    Class captionClass = NSClassFromString(@"AWEPlayInteractionDescriptionLabel");
-    if (!root || !captionClass) return;
-    if ([root isKindOfClass:captionClass]) {
-        CALayer *layer = root.layer;
-        if (!objc_getAssociatedObject(root, &kDKCaptionShadowOpacityKey)) {
-            objc_setAssociatedObject(root, &kDKCaptionShadowOpacityKey, @(layer.shadowOpacity), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-            objc_setAssociatedObject(root, &kDKCaptionShadowRadiusKey, @(layer.shadowRadius), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-            objc_setAssociatedObject(root, &kDKCaptionShadowOffsetKey, [NSValue valueWithCGSize:layer.shadowOffset], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        }
-        NSInteger level = DKCaptionContrastLevel();
-        if (level == 0) {
-            layer.shadowOpacity = [objc_getAssociatedObject(root, &kDKCaptionShadowOpacityKey) floatValue];
-            layer.shadowRadius = [objc_getAssociatedObject(root, &kDKCaptionShadowRadiusKey) doubleValue];
-            layer.shadowOffset = [objc_getAssociatedObject(root, &kDKCaptionShadowOffsetKey) CGSizeValue];
-        } else {
-            layer.shadowColor = UIColor.blackColor.CGColor;
-            layer.shadowOpacity = 0.35f + 0.15f * level;
-            layer.shadowRadius = 1.0 + 0.5 * level;
-            layer.shadowOffset = CGSizeMake(0.0, 1.0);
-        }
+static void DKSyncCaptionShadow(UIView *caption) {
+    CALayer *layer = caption.layer;
+    if (!objc_getAssociatedObject(caption, &kDKCaptionShadowOpacityKey)) {
+        objc_setAssociatedObject(caption, &kDKCaptionShadowOpacityKey, @(layer.shadowOpacity), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(caption, &kDKCaptionShadowRadiusKey, @(layer.shadowRadius), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(caption, &kDKCaptionShadowOffsetKey, [NSValue valueWithCGSize:layer.shadowOffset], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        id color = layer.shadowColor ? (__bridge id)layer.shadowColor : NSNull.null;
+        objc_setAssociatedObject(caption, &kDKCaptionShadowColorKey, color, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    for (UIView *subview in root.subviews) DKSyncCaptionShadow(subview);
+    NSInteger level = DKCaptionContrastLevel();
+    if (level == 0) {
+        layer.shadowOpacity = [objc_getAssociatedObject(caption, &kDKCaptionShadowOpacityKey) floatValue];
+        layer.shadowRadius = [objc_getAssociatedObject(caption, &kDKCaptionShadowRadiusKey) doubleValue];
+        layer.shadowOffset = [objc_getAssociatedObject(caption, &kDKCaptionShadowOffsetKey) CGSizeValue];
+        id color = objc_getAssociatedObject(caption, &kDKCaptionShadowColorKey);
+        layer.shadowColor = color == NSNull.null ? nil : (__bridge CGColorRef)color;
+        return;
+    }
+    CGFloat opacity = 0.35 + 0.15 * level;
+    CGFloat radius = 1.0 + 0.5 * level;
+    if (layer.shadowColor != UIColor.blackColor.CGColor) layer.shadowColor = UIColor.blackColor.CGColor;
+    if (fabs(layer.shadowOpacity - opacity) > 0.01) layer.shadowOpacity = opacity;
+    if (fabs(layer.shadowRadius - radius) > 0.01) layer.shadowRadius = radius;
+    if (!CGSizeEqualToSize(layer.shadowOffset, CGSizeMake(0.0, 1.0))) {
+        layer.shadowOffset = CGSizeMake(0.0, 1.0);
+    }
 }
+
+%hook AWEPlayInteractionDescriptionLabel
+
+- (void)layoutSubviews {
+    %orig;
+    DKSyncCaptionShadow(self);
+}
+
+%end
 
 static void DKEnhanceVideoBottomGradient(UIView *view) {
     if (![view.layer isKindOfClass:CAGradientLayer.class]) return;
@@ -563,6 +574,9 @@ static void DKEnhanceVideoBottomGradient(UIView *view) {
         objc_setAssociatedObject(view, &kDKCaptionGradientLocationsKey, gradient.locations ?: @[], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     NSInteger level = DKCaptionContrastLevel();
+    NSNumber *applied = objc_getAssociatedObject(view, &kDKCaptionGradientLevelKey);
+    if (applied && applied.integerValue == level) return;
+    objc_setAssociatedObject(view, &kDKCaptionGradientLevelKey, @(level), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if (level == 0) {
         gradient.colors = objc_getAssociatedObject(view, &kDKCaptionGradientColorsKey);
         gradient.locations = objc_getAssociatedObject(view, &kDKCaptionGradientLocationsKey);

@@ -28,6 +28,7 @@ static BOOL DKIsMusicButtonText(NSString *text) {
     if (text.length == 0) return NO;
     return [text isEqualToString:@"听抖音"]
         || [text isEqualToString:@"拍同款"]
+        || [text isEqualToString:@"玩同款"]
         || [text isEqualToString:@"听完整版"];
 }
 
@@ -52,6 +53,15 @@ static void DKSyncMusicButtonTextTree(UIView *root) {
     if ([root isKindOfClass:UILabel.class]) DKSyncMusicButtonText((UILabel *)root);
     for (UIView *subview in root.subviews) DKSyncMusicButtonTextTree(subview);
 }
+
+%hook AWEPlayInteractionStyleOneMusicView
+
+- (void)layoutSubviews {
+    %orig;
+    DKSyncMusicButtonTextTree((UIView *)self);
+}
+
+%end
 
 %hook AWEPlayInteractionListenFeedView
 
