@@ -31,6 +31,7 @@
 static NSString *const kDKBadgeContainerClass = @"AWENormalModeTabBarBadgeContainerView";
 static NSString *const kDKBadgeClass = @"DUXBadge";
 static NSString *const kDKPlatterClass = @"_UITabBarItemPlatterView";
+static NSString *const kDKSelectionViewClass = @"_UITabSelectionView";
 static NSString *const kDKPlusClickSelector = @"plusTabBarButtonDidClick:";
 static NSString *const kDKTabClickSelector = @"tabBarButtonDidTouchUpInside:gestureRecognizer:";
 
@@ -563,6 +564,29 @@ static UIView *DKGlassFindPlatter(UIView *root) {
     return nil;
 }
 
+static char kDKSelectionOriginalOpacityKey;
+
+static void DKGlassSoftenSelection(UIView *root) {
+    if (!root) return;
+    for (UIView *subview in root.subviews) {
+        if ([NSStringFromClass(subview.class) containsString:kDKSelectionViewClass]) {
+            NSNumber *original = objc_getAssociatedObject(subview, &kDKSelectionOriginalOpacityKey);
+            if (!original) {
+                original = @(subview.layer.opacity);
+                objc_setAssociatedObject(subview, &kDKSelectionOriginalOpacityKey, original,
+                                         OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            }
+            // 保留 CABackdropLayer 的折射与交互，仅减弱深色实心选中遮罩。
+            float target = DKGlassTabBarUsesClear() ? 0.48f : 0.70f;
+            if (fabsf(subview.layer.opacity - target) > 0.01f) {
+                subview.layer.opacity = target;
+            }
+        } else {
+            DKGlassSoftenSelection(subview);
+        }
+    }
+}
+
 // 胶囊让出右侧一块，圆键补上。几何全部从 platter 实测：直径取它的高、纵向与它对齐、
 // 右边距取它自己的左内缩，这样胶囊与圆键的外边距对称。
 // platter 首帧还不存在时用兜底值，次帧即被真实值取代；写入先比较，不会形成布局环。
@@ -572,6 +596,7 @@ static void DKGlassLayoutGlass(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios
     // 找到 platter 就顺手把它的玻璃换成 Clear。放在所有提前 return 之前：
     // 拍摄按钮被其他插件移除时下面会早退，但胶囊材质照样要生效。
     DKGlassApplyPlatterGlass(platterView, gGlassStyle);
+    DKGlassSoftenSelection(platterView);
 
     CGRect platter = platterView ? [platterView convertRect:platterView.bounds toView:gBar] : CGRectZero;
     BOOL measured = CGRectGetHeight(platter) > 0.0;

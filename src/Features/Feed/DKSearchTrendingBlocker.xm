@@ -145,7 +145,7 @@ static void DKSearchImageAdded(const struct mach_header *header, intptr_t slide)
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    DKSyncSearchRecommend(self.viewIfLoaded);
+    DKSyncSearchRecommend([(UIViewController *)self viewIfLoaded]);
 }
 
 %end
