@@ -66,6 +66,8 @@ static NSString *const DKKeyHideFollowButton     = @"DYKillerHideFollowButton";
 static NSString *const DKKeyHideMusicInfo        = @"DYKillerHideMusicInfo";
 // 只隐藏右下角音乐按钮上的“拍同款/听抖音”等引导文字，保留按钮本体。
 static NSString *const DKKeyHideMusicButtonText  = @"DYKillerHideMusicButtonText";
+// 清除视频底部 40pt 合集条背景，保留内容与点击。
+static NSString *const DKKeyTransparentMixBar    = @"DYKillerTransparentMixBar";
 
 #pragma mark - 功能组：个人主页
 
