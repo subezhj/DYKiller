@@ -39,17 +39,18 @@ BOOL DKVideoFullscreenOn(void) {
 }
 
 static BOOL DKDYYYImageLoaded(void) {
-    static BOOL found = NO;
-    if (found) return YES;
+    static int state = -1;
+    if (state >= 0) return state == 1;
     for (uint32_t i = 0; i < _dyld_image_count(); i++) {
         const char *name = _dyld_get_image_name(i);
         const char *leaf = name ? strrchr(name, '/') : NULL;
         leaf = leaf ? leaf + 1 : name;
         if (leaf && (!strcmp(leaf, "DYYY.dylib") || !strcmp(leaf, "DYYY"))) {
-            found = YES;
+            state = 1;
             return YES;
         }
     }
+    state = 0;
     return NO;
 }
 
