@@ -11,6 +11,9 @@
 #import "DKUtils.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
+#import <objc/runtime.h>
+
+static char kDKMusicButtonTextHiddenKey;
 
 %hook AWEPlayInteractionViewController
 
@@ -21,9 +24,43 @@
 
 %end
 
-static void DKSyncMusicButtonText(UILabel *label) {
-    if (label) label.hidden = DKPrefBool(DKKeyHideMusicButtonText);
+static BOOL DKIsMusicButtonText(NSString *text) {
+    if (text.length == 0) return NO;
+    return [text isEqualToString:@"听抖音"]
+        || [text isEqualToString:@"拍同款"]
+        || [text isEqualToString:@"听完整版"];
 }
+
+static void DKSyncMusicButtonText(UILabel *label) {
+    if (!label) return;
+    BOOL enabled = DKPrefBool(DKKeyHideMusicButtonText);
+    NSNumber *original = objc_getAssociatedObject(label, &kDKMusicButtonTextHiddenKey);
+    if (enabled && DKIsMusicButtonText(label.text)) {
+        if (!original) {
+            objc_setAssociatedObject(label, &kDKMusicButtonTextHiddenKey, @(label.hidden),
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        label.hidden = YES;
+    } else if (original) {
+        label.hidden = original.boolValue;
+        objc_setAssociatedObject(label, &kDKMusicButtonTextHiddenKey, nil,
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+}
+
+static void DKSyncMusicButtonTextTree(UIView *root) {
+    if ([root isKindOfClass:UILabel.class]) DKSyncMusicButtonText((UILabel *)root);
+    for (UIView *subview in root.subviews) DKSyncMusicButtonTextTree(subview);
+}
+
+%hook AWEPlayInteractionListenFeedView
+
+- (void)layoutSubviews {
+    %orig;
+    DKSyncMusicButtonTextTree(self);
+}
+
+%end
 
 %hook AWEMusicCoverButton
 

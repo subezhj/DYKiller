@@ -509,39 +509,6 @@ void DKHUDStatusBarCoverSync(UIViewController *interaction) {
     }
 }
 
-static BOOL DKViewContainsClass(UIView *root, Class cls) {
-    if (!root || !cls) return NO;
-    if ([root isKindOfClass:cls]) return YES;
-    for (UIView *subview in root.subviews) {
-        if (DKViewContainsClass(subview, cls)) return YES;
-    }
-    return NO;
-}
-
-// 39.8 图文左侧文案栈底边距 HUD 为 13pt，视频页因进度条预留只剩 1pt。
-// 只校正包含视频进度容器的 HUD，并只移动内含文案 Label 的宽栈。
-static void DKAlignVideoCaptionBottom(UIViewController *interaction) {
-    UIView *hud = interaction.viewIfLoaded;
-    Class progressClass = NSClassFromString(@"AWEDPlayerProgressContainerView");
-    Class stackClass = NSClassFromString(@"AWEElementStackView");
-    Class captionClass = NSClassFromString(@"AWEPlayInteractionDescriptionLabel");
-    if (!hud || !DKViewContainsClass(hud, progressClass)) return;
-
-    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - 13.0;
-    for (UIView *view in hud.subviews) {
-        if (![view isKindOfClass:stackClass]
-            || CGRectGetWidth(view.bounds) < 200.0
-            || !DKViewContainsClass(view, captionClass)) {
-            continue;
-        }
-        CGRect frame = view.frame;
-        CGFloat delta = targetBottom - CGRectGetMaxY(frame);
-        if (fabs(delta) <= kDKSignatureTolerance) continue;
-        frame.origin.y += delta;
-        view.frame = frame;
-    }
-}
-
 static void DKSyncCaptionShadow(UIView *root);
 
 // DKVideoFeedTable.xm 也在同一个方法上挂了一层（HUD 高度的布局后补正），两处分属两个功能、
@@ -551,7 +518,6 @@ static void DKSyncCaptionShadow(UIView *root);
 - (void)viewDidLayoutSubviews {
     %orig;
     DKHUDStatusBarCoverSync(self);
-    DKAlignVideoCaptionBottom(self);
     DKSyncCaptionShadow(self.viewIfLoaded);
 }
 

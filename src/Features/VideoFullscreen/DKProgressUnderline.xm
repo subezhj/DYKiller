@@ -55,6 +55,18 @@ static void DKRestoreVideoProgressSlider(UIView *view) {
                              OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
+static void DKSyncProgressSlidersInView(UIView *root) {
+    Class sliderClass = NSClassFromString(@"AWEFeedProgressSlider");
+    for (UIView *view in root.subviews) {
+        if ([view isKindOfClass:sliderClass]) {
+            DKHideVideoProgressOn() ? DKHideVideoProgressSlider(view)
+                                    : DKRestoreVideoProgressSlider(view);
+        } else {
+            DKSyncProgressSlidersInView(view);
+        }
+    }
+}
+
 // 签名：容器直属 + 普通 UIView + 满宽 + 极薄 + 底色不透明。
 //
 // 不用「贴容器底边」做锚点：beta6 实测该层是 {0, 115.1, 428, 2}、容器高 200，
@@ -104,6 +116,7 @@ static void DKRestoreUnderline(UIView *view) {
 - (void)layoutSubviews {
     %orig;
 
+    DKSyncProgressSlidersInView(self);
     BOOL enabled = DKVideoFullscreenOn();
 
     for (UIView *view in self.subviews) {
