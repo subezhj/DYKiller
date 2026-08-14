@@ -442,20 +442,8 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 
 - (void)viewDidLayoutSubviews {
     %orig;
-
-    // 搜索图文详情的 Cell 为 874pt，但 RichContent 容器被原生保留在 799pt，
-    // 底部 75pt 因此露出黑底。只延伸容器，不改内容滚动和播放器路由。
-    if (DKVideoFullscreenOn() && self.viewIfLoaded.superview) {
-        UIView *view = self.viewIfLoaded;
-        UIView *parent = view.superview;
-        CGFloat parentHeight = CGRectGetHeight(parent.bounds);
-        if (parentHeight > CGRectGetHeight(view.bounds) + 1.0
-            && DKViewIsInsideClass(view, @"AWEAwemeDetailTableViewCell")) {
-            CGRect frame = view.frame;
-            frame.size.height = parentHeight;
-            view.frame = frame;
-        }
-    }
+    // 不改 RichContent 根视图 frame：搜索详情滑动复用时宿主会持续写回 799pt，
+    // 与强制 874pt 形成布局风暴。底部黑条仅由渐变 overflow 延伸覆盖。
     DKSyncRichClips(self.viewIfLoaded);
 }
 

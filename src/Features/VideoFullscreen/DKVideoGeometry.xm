@@ -22,6 +22,8 @@
 #import "DKSettings.h"
 #import "DKUtils.h"
 #import <math.h>
+#import <mach-o/dyld.h>
+#import <string.h>
 
 // 高/宽达到此阈值才算「比例达标」，可以拉满整屏；低比例竖屏与横屏保持容器自然尺寸。
 static const CGFloat kDKFullscreenMinAspect = 1.70;
@@ -36,9 +38,23 @@ BOOL DKVideoFullscreenOn(void) {
     return DKPrefBool(DKKeyVideoFullscreen);
 }
 
+static BOOL DKDYYYImageLoaded(void) {
+    static BOOL found = NO;
+    if (found) return YES;
+    for (uint32_t i = 0; i < _dyld_image_count(); i++) {
+        const char *name = _dyld_get_image_name(i);
+        const char *leaf = name ? strrchr(name, '/') : NULL;
+        leaf = leaf ? leaf + 1 : name;
+        if (leaf && (!strcmp(leaf, "DYYY.dylib") || !strcmp(leaf, "DYYY"))) {
+            found = YES;
+            return YES;
+        }
+    }
+    return NO;
+}
+
 BOOL DKVideoGeometryOwnedByDYYY(void) {
-    Class settingClass = NSClassFromString(@"DYYYSettingViewController");
-    return settingClass != Nil
+    return DKDYYYImageLoaded()
         && [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableFullScreen"];
 }
 
