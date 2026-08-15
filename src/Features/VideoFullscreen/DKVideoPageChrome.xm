@@ -582,7 +582,46 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     }
 }
 
+%hook AWEDPlayerViewController_Merge
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (DKVideoFullscreenOn()) {
+        UIView *contentView = [self respondsToSelector:@selector(contentView)] ? (UIView *)[self performSelector:@selector(contentView)] : self.view;
+        if (contentView && contentView.superview) {
+            CGFloat parentHeight = contentView.superview.frame.size.height;
+            if (parentHeight > 0 && fabs(contentView.frame.size.height - parentHeight) > 0.5) {
+                CGRect frame = contentView.frame;
+                frame.size.height = parentHeight;
+                contentView.frame = frame;
+            }
+        }
+    }
+}
+
+%end
+
+%hook AWEDPlayerFeedPlayerViewController
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (DKVideoFullscreenOn()) {
+        UIView *contentView = [self respondsToSelector:@selector(contentView)] ? (UIView *)[self performSelector:@selector(contentView)] : self.view;
+        if (contentView && contentView.superview) {
+            CGFloat parentHeight = contentView.superview.frame.size.height;
+            if (parentHeight > 0 && fabs(contentView.frame.size.height - parentHeight) > 0.5) {
+                CGRect frame = contentView.frame;
+                frame.size.height = parentHeight;
+                contentView.frame = frame;
+            }
+        }
+    }
+}
+
+%end
+
 // DKVideoFeedTable.xm 也在同一个方法上挂了一层（HUD 高度的布局后补正），两处分属两个功能、
+
 // 各自跟着自己的模块走，串联生效，互不依赖。
 %hook AWEPlayInteractionViewController
 
