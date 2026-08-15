@@ -626,6 +626,41 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 
 %end
 
+%hook AFDViewedBottomView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKVideoFullscreenOn()) {
+        self.backgroundColor = [UIColor clearColor];
+        if ([self respondsToSelector:@selector(effectView)]) {
+            UIView *ev = [self performSelector:@selector(effectView)];
+            if (ev) ev.hidden = YES;
+        }
+    }
+}
+
+%end
+
+%hook AWEIMFeedBottomQuickEmojiInputBar
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKVideoFullscreenOn()) {
+        UIView *parentView = self.superview;
+        while (parentView) {
+            if ([NSStringFromClass([parentView class]) isEqualToString:@"UIView"]) {
+                parentView.backgroundColor = [UIColor clearColor];
+                parentView.layer.backgroundColor = [UIColor clearColor].CGColor;
+                parentView.opaque = NO;
+                break;
+            }
+            parentView = parentView.superview;
+        }
+    }
+}
+
+%end
+
 // 参考 DYYY 全屏机制：作品页/详情页保持原生 HUD 容器高度，背景视频单独拉满，
 static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
     NSString *refer = nil;
