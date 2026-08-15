@@ -177,10 +177,12 @@ CGRect DKFeedHUDAdjustFrame(UIView *view, CGRect frame) {
 
 - (void)viewDidLayoutSubviews {
     %orig;
+    if (!DKVideoGeometryOn()) return;
 
     // 已经在 HUD 控制器内部，不必再判类型。
     UIView *view = self.viewIfLoaded;
     if (!view) return;
+
 
     CGFloat original = DKFeedOriginalHeight(view);
     if (original <= 0.0) return;

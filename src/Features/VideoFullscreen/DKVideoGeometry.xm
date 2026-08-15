@@ -45,7 +45,7 @@ static BOOL DKDYYYImageLoaded(void) {
         const char *name = _dyld_get_image_name(i);
         const char *leaf = name ? strrchr(name, '/') : NULL;
         leaf = leaf ? leaf + 1 : name;
-        if (leaf && (!strcmp(leaf, "DYYY.dylib") || !strcmp(leaf, "DYYY"))) {
+        if (leaf && strcasestr(leaf, "DYYY")) {
             state = 1;
             return YES;
         }
@@ -58,6 +58,7 @@ BOOL DKVideoGeometryOwnedByDYYY(void) {
     return DKDYYYImageLoaded()
         && [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableFullScreen"];
 }
+
 
 BOOL DKIsSearchDetailView(UIView *view) {
     if (!view) return NO;

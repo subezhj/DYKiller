@@ -535,13 +535,14 @@ static BOOL DKNavigationCameFromSearch(UIViewController *controller) {
 }
 
 static void DKSyncSearchDetailChrome(UIViewController *interaction) {
+    if (DKVideoGeometryOwnedByDYYY()) return;
     UIView *hud = interaction.viewIfLoaded;
     Class stackClass = NSClassFromString(@"AWEElementStackView");
     if (!hud || !stackClass) return;
     BOOL active = DKVideoFullscreenOn()
-        && !DKVideoGeometryOwnedByDYYY()
         && DKViewIsInsideClass(hud, @"AWEAwemeDetailTableViewCell")
         && DKNavigationCameFromSearch(interaction);
+
 
     CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 0.0;
     CGFloat targetBottom = CGRectGetHeight(hud.bounds) - safeBottom;

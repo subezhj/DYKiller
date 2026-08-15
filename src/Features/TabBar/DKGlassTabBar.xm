@@ -838,8 +838,9 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 - (void)layoutSubviews {
     %orig;
     if (DKGlassTabBarEnabled()) {
-        ((UIView *)self).hidden = YES;
-        ((UIView *)self).alpha = 0.0;
+        UIView *v = (UIView *)self;
+        if (!v.hidden) v.hidden = YES;
+        if (v.alpha != 0.0) v.alpha = 0.0;
     }
 }
 
@@ -858,8 +859,9 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 - (void)layoutSubviews {
     %orig;
     if (DKGlassTabBarEnabled()) {
-        ((UIView *)self).hidden = YES;
-        ((UIView *)self).alpha = 0.0;
+        UIView *v = (UIView *)self;
+        if (!v.hidden) v.hidden = YES;
+        if (v.alpha != 0.0) v.alpha = 0.0;
     }
 }
 
@@ -878,10 +880,11 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 - (void)layoutSubviews {
     %orig;
     if (DKGlassTabBarEnabled()) {
-        ((UIView *)self).backgroundColor = UIColor.clearColor;
-        ((UIView *)self).layer.backgroundColor = UIColor.clearColor.CGColor;
-        ((UIView *)self).opaque = NO;
-        for (UIView *subview in ((UIView *)self).subviews) {
+        UIView *v = (UIView *)self;
+        if (v.backgroundColor != UIColor.clearColor) v.backgroundColor = UIColor.clearColor;
+        if (v.layer.backgroundColor != UIColor.clearColor.CGColor) v.layer.backgroundColor = UIColor.clearColor.CGColor;
+        if (v.opaque) v.opaque = NO;
+        for (UIView *subview in v.subviews) {
             NSString *name = NSStringFromClass(subview.class);
             BOOL isPlatter = [name containsString:kDKPlatterClass]
                 || [name containsString:@"Button"]
@@ -889,8 +892,8 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
                 || [name containsString:@"Badge"]
                 || [name containsString:@"Icon"];
             if (!isPlatter) {
-                subview.hidden = YES;
-                subview.alpha = 0.0;
+                if (!subview.hidden) subview.hidden = YES;
+                if (subview.alpha != 0.0) subview.alpha = 0.0;
             }
         }
     }
@@ -903,8 +906,9 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 - (void)layoutSubviews {
     %orig;
     if (DKGlassTabBarEnabled()) {
-        ((UIView *)self).hidden = YES;
-        ((UIView *)self).alpha = 0.0;
+        UIView *v = (UIView *)self;
+        if (!v.hidden) v.hidden = YES;
+        if (v.alpha != 0.0) v.alpha = 0.0;
     }
 }
 
@@ -923,9 +927,10 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 - (void)layoutSubviews {
     %orig;
     if (DKGlassTabBarEnabled()) {
-        ((UIView *)self).backgroundColor = UIColor.clearColor;
-        ((UIView *)self).layer.backgroundColor = UIColor.clearColor.CGColor;
-        ((UIView *)self).opaque = NO;
+        UIView *v = (UIView *)self;
+        if (v.backgroundColor != UIColor.clearColor) v.backgroundColor = UIColor.clearColor;
+        if (v.layer.backgroundColor != UIColor.clearColor.CGColor) v.layer.backgroundColor = UIColor.clearColor.CGColor;
+        if (v.opaque) v.opaque = NO;
     }
 }
 
@@ -936,13 +941,15 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 - (void)layoutSubviews {
     %orig;
     if (DKGlassTabBarEnabled()) {
-        ((UIView *)self).backgroundColor = UIColor.clearColor;
-        ((UIView *)self).layer.backgroundColor = UIColor.clearColor.CGColor;
-        ((UIView *)self).opaque = NO;
+        UIView *v = (UIView *)self;
+        if (v.backgroundColor != UIColor.clearColor) v.backgroundColor = UIColor.clearColor;
+        if (v.layer.backgroundColor != UIColor.clearColor.CGColor) v.layer.backgroundColor = UIColor.clearColor.CGColor;
+        if (v.opaque) v.opaque = NO;
     }
 }
 
 %end
+
 
 
 
