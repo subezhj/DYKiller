@@ -275,10 +275,14 @@ static void DKGlassObserveStyle(UIView *host) API_AVAILABLE(ios(26.0)) {
 // 不动）。故把标题渲染成模板图当图标用、标题置空，由系统把它当图标居中。
 // 模板图只取 alpha，着色仍归系统，选中态与深浅色都自动跟上。
 // 字重取 Semibold：玻璃胶囊上压着的内容要够重，太细在半透明底上会发糊。
-static UIImage *DKGlassTitleImage(NSString *title) {
+static BOOL DKGlassTabBarAutoTintEnabled(void) {
+    return DKPrefBool(DKKeyGlassTabBarAutoTint);
+}
+
+static UIImage *DKGlassTitleImageWithColor(NSString *title, UIColor *color) {
     NSDictionary *attributes = @{
         NSFontAttributeName: [UIFont systemFontOfSize:kDKTitleFontSize weight:UIFontWeightSemibold],
-        NSForegroundColorAttributeName: UIColor.blackColor
+        NSForegroundColorAttributeName: color ?: UIColor.labelColor
     };
     CGSize size = [title sizeWithAttributes:attributes];
     size.width = ceil(size.width);
@@ -291,6 +295,47 @@ static UIImage *DKGlassTitleImage(NSString *title) {
             [title drawAtPoint:CGPointZero withAttributes:attributes];
         }];
     return [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+}
+
+static UIColor *DKGlassColorAtPoint(UIView *view, CGPoint point) {
+    if (!view || view.hidden || view.alpha <= 0.01 || view == gBar || view == gPlusKey) return nil;
+    CGPoint local = [view convertPoint:point fromView:view.window];
+    if (!CGRectContainsPoint(view.bounds, local)) return nil;
+    for (UIView *subview in [view.subviews reverseObjectEnumerator]) {
+        UIColor *nested = DKGlassColorAtPoint(subview, point);
+        if (nested) return nested;
+    }
+    UIColor *color = view.backgroundColor;
+    CGFloat alpha = 0.0;
+    if (color && [color getWhite:NULL alpha:&alpha] && alpha > 0.05) return color;
+    if (color && [color getRed:NULL green:NULL blue:NULL alpha:&alpha] && alpha > 0.05) return color;
+    return nil;
+}
+
+static UIColor *DKGlassTintForItemAtIndex(NSUInteger index) {
+    if (!DKGlassTabBarAutoTintEnabled() || !gBar.window) return UIColor.labelColor;
+    CGFloat width = CGRectGetWidth(gBar.bounds) / MAX(gBar.items.count, 1);
+    CGPoint barPoint = CGPointMake((index + 0.5) * width, CGRectGetHeight(gBar.bounds) + 1.0);
+    CGPoint point = [gBar convertPoint:barPoint toView:gBar.window];
+    UIColor *background = DKGlassColorAtPoint(gBar.window.rootViewController.view, point);
+    CGFloat white = 0.5, alpha = 1.0;
+    if (background && [background getWhite:&white alpha:&alpha]) return white > 0.58 ? UIColor.blackColor : UIColor.whiteColor;
+    CGFloat red = 0, green = 0, blue = 0;
+    if (background && [background getRed:&red green:&green blue:&blue alpha:&alpha]) {
+        return (0.299 * red + 0.587 * green + 0.114 * blue) > 0.58 ? UIColor.blackColor : UIColor.whiteColor;
+    }
+    return gGlassStyle == UIUserInterfaceStyleLight ? UIColor.blackColor : UIColor.whiteColor;
+}
+
+static void DKGlassSyncItemTints(void) {
+    if (!gBar || !DKGlassTabBarAutoTintEnabled()) return;
+    for (NSUInteger i = 0; i < gBar.items.count; i++) {
+        UITabBarItem *item = gBar.items[i];
+        UIColor *color = DKGlassTintForItemAtIndex(i);
+        UIImage *image = DKGlassTitleImageWithColor(item.accessibilityLabel ?: @"", color);
+        item.image = image;
+        item.selectedImage = image;
+    }
 }
 
 #pragma mark - 拍摄图标
@@ -488,7 +533,7 @@ static BOOL DKGlassSyncItems(UITabBarController *controller, NSArray *buttons) {
         [titles enumerateObjectsUsingBlock:^(NSString *title, NSUInteger index, __unused BOOL *stop) {
             // 标题走 image 槽（见 DKGlassTitleImage），title 置空，否则系统还会再排一行标签。
             UITabBarItem *item = [[UITabBarItem alloc] initWithTitle:nil
-                                                               image:DKGlassTitleImage(title)
+                                                               image:DKGlassTitleImageWithColor(title, UIColor.labelColor)
                                                                  tag:(NSInteger)index];
             item.accessibilityLabel = title;   // 标题不再是文字，旁白与探针都靠它认人
             [items addObject:item];
@@ -741,6 +786,7 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
     DKGlassApplyStyle(douyinBar.window.windowScene.traitCollection.userInterfaceStyle);
     DKGlassSyncItems(controller, buttons);
     DKGlassLayoutGlass(douyinBar);
+    DKGlassSyncItemTints();
     DKGlassSetDouyinContentVisible(douyinBar, buttons, NO);
     DKGlassSyncSkinViews(douyinBar, NO);
     // 放在最后：可视化的环绕轮廓要用 DKGlassLayoutGlass 刚算完的胶囊与圆键几何。
@@ -837,6 +883,23 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
                 // 复位它，让拍摄圆键的 effect 也跟着重建。
                 gGlassStyle = UIUserInterfaceStyleUnspecified;
                 DKGlassUpdate(bar);
+            }
+        };
+        return item;
+    });
+
+    DKSettingsRegisterItem(@"底栏", ^AWESettingItemModel *{
+        AWESettingItemModel *item = DKMakeSwitch(
+            DKKeyGlassTabBarAutoTint,
+            @"底栏文字自动变色",
+            @"按每个按钮下方内容的明暗切换黑白标题，适配精选半页"
+        );
+        void (^origBlock)(void) = [item.switchChangedBlock copy];
+        item.switchChangedBlock = ^{
+            if (origBlock) origBlock();
+            AWENormalModeTabBar *bar = gDouyinBar;
+            if (@available(iOS 26.0, *)) {
+                if (bar) DKGlassUpdate(bar);
             }
         };
         return item;

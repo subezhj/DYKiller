@@ -50,6 +50,8 @@ static NSString *const DKKeyInnerNotiCorner     = @"DYKillerInnerNotiCorner";
 
 static NSString *const DKKeyGlassTabBar      = @"DYKillerGlassTabBar";
 static NSString *const DKKeyGlassTabBarClear = @"DYKillerGlassTabBarClear";
+// 按底栏每个按钮下方内容的明暗分别切换模板标题颜色。
+static NSString *const DKKeyGlassTabBarAutoTint = @"DYKillerGlassTabBarAutoTint";
 
 #pragma mark - 功能组：音频可视化
 
