@@ -632,22 +632,21 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
     if ([interaction respondsToSelector:@selector(referString)]) {
         refer = [interaction performSelector:@selector(referString)];
     }
-    if (!refer || refer.length == 0) return YES;
-    if ([refer isEqualToString:@"general_search"] ||
-        [refer isEqualToString:@"search_result"] ||
-        [refer isEqualToString:@"search_ecommerce"] ||
-        [refer isEqualToString:@"chat"] ||
-        [refer isEqualToString:@"close_friends_moment"] ||
-        [refer isEqualToString:@"offline_mode"] ||
-        [refer isEqualToString:@"challenge"]) {
-        return YES;
+    // 仅在用户个人作品页（personal_homepage / others_homepage / user_post）预留 75pt 空间，
+    // 以防止合集栏与防沉迷栏重叠；
+    // 其余所有场景（经验视频 homepage_fresh/fresh/experience、群聊 chat、搜索 general_search、首页推荐等）一律满高 (874pt)，彻底解决文案偏高。
+    if (refer && (
+        [refer isEqualToString:@"personal_homepage"] ||
+        [refer isEqualToString:@"others_homepage"] ||
+        [refer isEqualToString:@"user_post"]
+    ) && !DKNavigationCameFromSearch(interaction)) {
+        return NO;
     }
-    if (DKNavigationCameFromSearch(interaction)) return YES;
-    return NO;
+    return YES;
 }
 
 // 完全对齐 DYYY 全屏判定逻辑：
-//   · 群聊视频 (chat)、经验视频 (search_result/general_search)、关怀模式拉满 (874pt)；
+//   · 经验视频、群聊视频、搜索视频与首页推荐拉满 (874pt)；
 //   · 仅在用户个人主页作品页 (personal_homepage/others_homepage) 预留 75pt 保持原生 Stack 自动排版。
 %hook AWEPlayInteractionViewController
 
