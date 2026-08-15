@@ -88,7 +88,7 @@ static CGFloat DKFeedOriginalHeight(UIView *view) {
 // AWEAwemeDetailTableView 没实现，只能靠基类那一层。子类先命中改成满高，super 再进基类那一层时
 // current 已等于 target，守卫直接跳过，天然幂等。
 CGRect DKVideoFeedTableAdjustFrame(UITableView *table, CGRect frame) {
-    if (DKIsSearchDetailView(table) || !DKVideoGeometryOn()) {
+    if (!DKVideoGeometryOn()) {
         // 关闭后一律放行，抖音写什么就是什么；标记清掉以免 HUD 继续被钉。
         objc_setAssociatedObject(table, &kDKFeedOriginalHeightKey, nil,
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
