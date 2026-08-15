@@ -92,5 +92,6 @@ static NSString *const DKKeyBlockJunkResources = @"DYKillerBlockJunkResources";
 #pragma mark - 功能组：调试工具
 
 static NSString *const DKKeyDebugInspectorEnabled = @"DYKillerDebugInspectorEnabled";
+static NSString *const DKKeyNetworkLoggerEnabled  = @"DYKillerNetworkLoggerEnabled";
 
 #endif /* DKKeys_h */

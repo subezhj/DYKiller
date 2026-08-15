@@ -588,6 +588,28 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 
 - (void)viewDidLayoutSubviews {
     %orig;
+    UIView *view = self.viewIfLoaded;
+    if (view && DKVideoFullscreenOn()) {
+        UIViewController *parentVC = self.parentViewController;
+        if (!parentVC) {
+            UIResponder *next = view.nextResponder;
+            while (next && ![next isKindOfClass:[UIViewController class]]) {
+                next = next.nextResponder;
+            }
+            parentVC = (UIViewController *)next;
+        }
+        if ([parentVC isKindOfClass:NSClassFromString(@"AWEAwemeDetailTableViewController")]) {
+            UIView *superview = view.superview;
+            CGFloat targetHeight = superview ? superview.bounds.size.height : [UIScreen mainScreen].bounds.size.height;
+            if (targetHeight > 0 && fabs(view.frame.size.height - targetHeight) > 0.5) {
+                CGRect f = view.frame;
+                f.origin.y = 0;
+                f.size.height = targetHeight;
+                view.frame = f;
+            }
+        }
+    }
+
     if (!DKIsSearchDetailView(self.viewIfLoaded)) {
         DKHUDStatusBarCoverSync(self);
         DKSyncSearchDetailChrome(self);
@@ -595,6 +617,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 }
 
 %end
+
 
 static NSInteger DKCaptionContrastLevel(void) {
     NSNumber *stored = [NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoCaptionContrast];
