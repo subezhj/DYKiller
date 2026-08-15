@@ -240,7 +240,16 @@
 @interface AWEPlayInteractionFollowPromptView : UIView             // 头像下方「关注(+)」容器；整视图仅含 + 图标
 @end
 
+#pragma mark - 垃圾资源与挂件拦截用到的类
+
+@interface AWELuckyCatBannerView : UIView
+@end
+
+@interface _TtC21AWEIncentiveSwiftImpl29IncentivePendantContainerView : UIView
+@end
+
 #pragma mark - 个人主页功能组用到的类
+
 
 @interface AWEUserProfileUGCContributionGuideEmptyCollectionViewCell : UICollectionViewCell
 @property (nonatomic, strong) UIView *bodyView;
