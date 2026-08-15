@@ -37,6 +37,7 @@
 @property (nonatomic, assign) BOOL hasInlandscape;                  // 横屏视频判据（横屏排除全屏）
 @property (nonatomic, strong) UIView *gradientBackgroundView;       // 评论 shrink 会调整该渐变透明度
 @property (nonatomic, copy) NSString *referString;                  // 页面来源，用于限定搜索详情页
+@property (nonatomic, strong) UIView *contentView;
 - (BOOL)isInLandscapeFeedStatus;
 - (void)videoDidShrink;
 - (BOOL)isPlaying;
@@ -187,6 +188,7 @@
 // 与 CommentFullScreenZoomAnimator——是自定义交互式转场的目标，不能拦下这次 push 改用控制器包含：
 // 转场框架在 push 之前已建好 context 并禁用交互，吞掉 %orig 它的完成回调就永远不来。
 @interface AWEDPlayerFeedPlayerViewController : UIViewController
+@property (nonatomic, strong) UIView *contentView;
 @end
 
 @interface AWECommentFullScreenContainerViewController : UIViewController
