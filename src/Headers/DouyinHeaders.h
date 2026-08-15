@@ -175,8 +175,12 @@
 // 评论区放大到全屏时被 push 上来的容器。它带整套 transition_* 协议方法，配 AWECommentFullScreenZoomTransition
 // 与 CommentFullScreenZoomAnimator——是自定义交互式转场的目标，不能拦下这次 push 改用控制器包含：
 // 转场框架在 push 之前已建好 context 并禁用交互，吞掉 %orig 它的完成回调就永远不来。
+@interface AWEDPlayerFeedPlayerViewController : UIViewController
+@end
+
 @interface AWECommentFullScreenContainerViewController : UIViewController
 @end
+
 
 // 视频侧的评论面板控制器。内嵌画中画（全屏评论区里把视频交出去、缩成右上角小窗）归它管，
 // enableShowInnerPiPWhenFullScreen 是这条功能的唯一闸门：enter / show / exit /

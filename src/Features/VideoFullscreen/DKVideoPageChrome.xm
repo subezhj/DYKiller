@@ -95,7 +95,19 @@ static BOOL DKPinMergeToTarget(UIViewController *merge) {
 - (void)viewDidLayoutSubviews {
     %orig;
     if (DKPinMergeToTarget(self)) gPinLayout++;
+    if (DKVideoFullscreenOn()) {
+        UIView *contentView = [self respondsToSelector:@selector(contentView)] ? (UIView *)[self performSelector:@selector(contentView)] : self.viewIfLoaded;
+        if (contentView && contentView.superview) {
+            CGFloat parentHeight = contentView.superview.frame.size.height;
+            if (parentHeight > 0 && fabs(contentView.frame.size.height - parentHeight) > 0.5) {
+                CGRect frame = contentView.frame;
+                frame.size.height = parentHeight;
+                contentView.frame = frame;
+            }
+        }
+    }
 }
+
 
 // 抖音展开评论区时靠这里把视频缩成小窗。两个开关任一开着，容器都由我们钉着，
 // 缩放只会让玻璃背后只剩黑底、并留下顶部那条黑遮罩，一律压掉。
@@ -582,31 +594,14 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     }
 }
 
-%hook AWEDPlayerViewController_Merge
-
-- (void)viewDidLayoutSubviews {
-    %orig;
-    if (DKVideoFullscreenOn()) {
-        UIView *contentView = [self respondsToSelector:@selector(contentView)] ? (UIView *)[self performSelector:@selector(contentView)] : self.view;
-        if (contentView && contentView.superview) {
-            CGFloat parentHeight = contentView.superview.frame.size.height;
-            if (parentHeight > 0 && fabs(contentView.frame.size.height - parentHeight) > 0.5) {
-                CGRect frame = contentView.frame;
-                frame.size.height = parentHeight;
-                contentView.frame = frame;
-            }
-        }
-    }
-}
-
-%end
-
 %hook AWEDPlayerFeedPlayerViewController
 
+
 - (void)viewDidLayoutSubviews {
     %orig;
     if (DKVideoFullscreenOn()) {
-        UIView *contentView = [self respondsToSelector:@selector(contentView)] ? (UIView *)[self performSelector:@selector(contentView)] : self.view;
+        UIView *contentView = [self respondsToSelector:@selector(contentView)] ? (UIView *)[self performSelector:@selector(contentView)] : self.viewIfLoaded;
+
         if (contentView && contentView.superview) {
             CGFloat parentHeight = contentView.superview.frame.size.height;
             if (parentHeight > 0 && fabs(contentView.frame.size.height - parentHeight) > 0.5) {

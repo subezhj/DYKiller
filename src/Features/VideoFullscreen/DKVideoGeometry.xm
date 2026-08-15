@@ -155,18 +155,24 @@ CGRect DKVideoContainerTargetFrame(UIView *view) {
     // 评论面板那条画中画因此改为直接关掉功能本身，见 Comment/DKCommentFullBackdrop.xm。
     UIWindow *window = view.window;
     if (window && window.windowLevel != UIWindowLevelNormal) return CGRectNull;
-    if (DKIsSearchDetailView(view)) return CGRectNull;
 
     UIView *parent = view.superview;
     CGFloat width = CGRectGetWidth(parent.bounds);
     CGFloat height = CGRectGetHeight(parent.bounds);
     if (width <= 0.0 || height <= 0.0) return CGRectNull;
 
+    if (DKVideoFullscreenOn() && DKIsSearchDetailView(view)) {
+        CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
+        if (screenHeight > height) height = screenHeight;
+        return CGRectMake(0.0, 0.0, width, height);
+    }
+
     if (DKVideoGeometryOn()
         && DKMergeCanCoverScreen((AWEDPlayerViewController_Merge *)view.nextResponder)) {
         CGFloat full = DKFullCellHeight(view);
         if (full > height) height = full;
     }
+
     return CGRectMake(0.0, 0.0, width, height);
 }
 
