@@ -873,7 +873,32 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 
 %end
 
-%hook AWEHPTabBarButtonTransitionBackgroundView
+%hook AWEFakeTabBar
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKGlassTabBarEnabled()) {
+        ((UIView *)self).backgroundColor = UIColor.clearColor;
+        ((UIView *)self).layer.backgroundColor = UIColor.clearColor.CGColor;
+        ((UIView *)self).opaque = NO;
+        for (UIView *subview in ((UIView *)self).subviews) {
+            NSString *name = NSStringFromClass(subview.class);
+            BOOL isPlatter = [name containsString:kDKPlatterClass]
+                || [name containsString:@"Button"]
+                || [name containsString:@"Label"]
+                || [name containsString:@"Badge"]
+                || [name containsString:@"Icon"];
+            if (!isPlatter) {
+                subview.hidden = YES;
+                subview.alpha = 0.0;
+            }
+        }
+    }
+}
+
+%end
+
+%hook AWENormalModeTabBarBlurView
 
 - (void)layoutSubviews {
     %orig;
@@ -892,6 +917,33 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 }
 
 %end
+
+%hook _UITabBarContainerWrapperView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKGlassTabBarEnabled()) {
+        ((UIView *)self).backgroundColor = UIColor.clearColor;
+        ((UIView *)self).layer.backgroundColor = UIColor.clearColor.CGColor;
+        ((UIView *)self).opaque = NO;
+    }
+}
+
+%end
+
+%hook _UITabBarContainerView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKGlassTabBarEnabled()) {
+        ((UIView *)self).backgroundColor = UIColor.clearColor;
+        ((UIView *)self).layer.backgroundColor = UIColor.clearColor.CGColor;
+        ((UIView *)self).opaque = NO;
+    }
+}
+
+%end
+
 
 
 

@@ -128,6 +128,12 @@
 @interface AWENormalModeTabBar : UITabBar
 @end
 
+@interface AWEFakeTabBar : UIView
+@end
+
+@interface AWENormalModeTabBarBlurView : UIView
+@end
+
 @interface AWETabBarSkinContainerView : UIView
 @end
 
@@ -136,6 +142,13 @@
 
 @interface AWEHPTabBarButtonTransitionBackgroundView : UIView
 @end
+
+@interface _UITabBarContainerWrapperView : UIView
+@end
+
+@interface _UITabBarContainerView : UIView
+@end
+
 
 
 #pragma mark - 评论区功能组用到的类
