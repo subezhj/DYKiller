@@ -622,24 +622,12 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    UIView *view = self.viewIfLoaded;
-    if (view && DKVideoFullscreenOn()) {
-        UIView *superview = view.superview;
-        CGFloat targetHeight = (superview && superview.bounds.size.height > 0) ? superview.bounds.size.height : [UIScreen mainScreen].bounds.size.height;
-        if (targetHeight > 800.0 && fabs(view.frame.size.height - targetHeight) > 0.5) {
-            CGRect f = view.frame;
-            f.origin.y = 0;
-            f.size.height = targetHeight;
-            view.frame = f;
-        }
-    }
-
-
     if (!DKIsSearchDetailView(self.viewIfLoaded)) {
         DKHUDStatusBarCoverSync(self);
         DKSyncSearchDetailChrome(self);
     }
 }
+
 
 %end
 
