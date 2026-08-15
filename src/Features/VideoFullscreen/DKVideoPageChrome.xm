@@ -565,7 +565,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 
     BOOL active = DKVideoFullscreenOn()
         && DKViewIsInsideClass(hud, @"AWEAwemeDetailTableViewCell")
-        && (DKNavigationCameFromSearch(interaction) || CGRectGetHeight(hud.bounds) > 800.0);
+        && DKNavigationCameFromSearch(interaction);
 
     CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 0.0;
     CGFloat targetBottom = CGRectGetHeight(hud.bounds) - safeBottom;
