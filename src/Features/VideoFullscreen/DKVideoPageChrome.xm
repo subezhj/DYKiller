@@ -626,6 +626,26 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 
 %end
 
+%hook AWEDPlayerViewController_Merge
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (DKVideoFullscreenOn()) {
+        UIView *contentView = [self respondsToSelector:@selector(contentView)] ? (UIView *)[self performSelector:@selector(contentView)] : self.viewIfLoaded;
+
+        if (contentView && contentView.superview) {
+            CGFloat parentHeight = contentView.superview.frame.size.height;
+            if (parentHeight > 0 && fabs(contentView.frame.size.height - parentHeight) > 0.5) {
+                CGRect frame = contentView.frame;
+                frame.size.height = parentHeight;
+                contentView.frame = frame;
+            }
+        }
+    }
+}
+
+%end
+
 %hook AFDViewedBottomView
 
 - (void)layoutSubviews {
