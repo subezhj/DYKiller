@@ -57,31 +57,65 @@ static BOOL DKNetworkLoggerActive(void) {
 
 %hook TTNetworkManager
 
-- (id)requestForURL:(NSString *)urlPath
-             method:(NSString *)method
-             params:(NSDictionary *)params
-       headerFields:(NSDictionary *)headerFields
-  requestSerializer:(Class)requestSerializer
- responseSerializer:(Class)responseSerializer
-         autoResume:(BOOL)autoResume
-           callback:(id)callback {
-    if (DKNetworkLoggerActive()) {
-        DKAddNetworkLog(urlPath, method, 200);
-    }
-    return %orig;
-}
-
-- (id)requestForJSONWithURL:(NSString *)urlPath
+- (id)requestForJSONWithURL:(NSString *)url
+                     params:(id)params
                      method:(NSString *)method
-                     params:(NSDictionary *)params
-               headerFields:(NSDictionary *)headerFields
+           needCommonParams:(BOOL)needCommonParams
+                headerField:(id)headerField
+          requestSerializer:(Class)requestSerializerClass
+         responseSerializer:(Class)responseSerializerClass
+                 autoResume:(BOOL)autoResume
                    callback:(id)callback {
     if (DKNetworkLoggerActive()) {
-        DKAddNetworkLog(urlPath, method, 200);
+        DKAddNetworkLog(url, method, 200);
     }
     return %orig;
 }
 
+- (id)requestForJSONWithResponse:(NSString *)url
+                          params:(id)params
+                          method:(NSString *)method
+                needCommonParams:(BOOL)needCommonParams
+                     headerField:(id)headerField
+               requestSerializer:(Class)requestSerializerClass
+              responseSerializer:(Class)responseSerializerClass
+                      autoResume:(BOOL)autoResume
+                        callback:(id)callback {
+    if (DKNetworkLoggerActive()) {
+        DKAddNetworkLog(url, method, 200);
+    }
+    return %orig;
+}
+
+- (id)requestForBinaryWithResponse:(NSString *)url
+                            params:(id)params
+                            method:(NSString *)method
+                  needCommonParams:(BOOL)needCommonParams
+                       headerField:(id)headerField
+                          callback:(id)callback {
+    if (DKNetworkLoggerActive()) {
+        DKAddNetworkLog(url, method, 200);
+    }
+    return %orig;
+}
+
+%end
+
+%hook NSURLSession
+
+- (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request completionHandler:(id)completionHandler {
+    if (DKNetworkLoggerActive() && request.URL.absoluteString) {
+        DKAddNetworkLog(request.URL.absoluteString, request.HTTPMethod ?: @"GET", 200);
+    }
+    return %orig;
+}
+
+- (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request {
+    if (DKNetworkLoggerActive() && request.URL.absoluteString) {
+        DKAddNetworkLog(request.URL.absoluteString, request.HTTPMethod ?: @"GET", 200);
+    }
+    return %orig;
+}
 
 %end
 
