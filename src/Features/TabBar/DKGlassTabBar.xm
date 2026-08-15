@@ -801,7 +801,23 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 
 - (void)layoutSubviews {
     %orig;
+    if (DKPrefBool(DKKeyHideBottomBar)) {
+        self.hidden = YES;
+        if (gBar) gBar.hidden = YES;
+        if (gPlusKey) gPlusKey.hidden = YES;
+        return;
+    }
     if (@available(iOS 26.0, *)) DKGlassUpdate(self);
+}
+
+- (void)setHidden:(BOOL)hidden {
+    if (DKPrefBool(DKKeyHideBottomBar)) {
+        %orig(YES);
+        if (gBar) gBar.hidden = YES;
+        if (gPlusKey) gPlusKey.hidden = YES;
+        return;
+    }
+    %orig(hidden);
 }
 
 %end
@@ -905,7 +921,23 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
         return item;
     });
 
-    if (DKGlassOSAvailable()) {
-        %init(DKGlassTabBarHooks);
-    }
+    DKSettingsRegisterItem(@"底栏", ^AWESettingItemModel *{
+        AWESettingItemModel *item = DKMakeSwitch(
+            DKKeyHideBottomBar,
+            @"移除底栏",
+            @"完全隐藏底部 TabBar 及其悬浮玻璃效果，释放底部全屏空间"
+        );
+        void (^origBlock)(void) = [item.switchChangedBlock copy];
+        item.switchChangedBlock = ^{
+            if (origBlock) origBlock();
+            AWENormalModeTabBar *bar = gDouyinBar;
+            if (bar) {
+                [bar setNeedsLayout];
+                [bar layoutIfNeeded];
+            }
+        };
+        return item;
+    });
+
+    %init(DKGlassTabBarHooks);
 }

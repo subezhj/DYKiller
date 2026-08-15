@@ -134,3 +134,49 @@ static void DKExtendGrouponContent(UIView *root) {
 }
 
 %end
+
+static char kDKHangoutFrameKey;
+
+static void DKExtendHangoutContent(UIView *root) {
+    UITabBar *glass = DKGlassTabBarCurrent();
+    if (!root) return;
+
+    Class collectionClass = [UICollectionView class];
+    NSMutableArray<UIView *> *pending = [NSMutableArray arrayWithObject:root];
+    while (pending.count) {
+        UIView *view = pending.lastObject;
+        [pending removeLastObject];
+        if ([view isKindOfClass:collectionClass]) {
+            NSValue *stored = objc_getAssociatedObject(view, &kDKHangoutFrameKey);
+            if (!glass) {
+                if (stored) view.frame = stored.CGRectValue;
+                objc_setAssociatedObject(view, &kDKHangoutFrameKey, nil,
+                                         OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                return;
+            }
+            if (!stored) {
+                stored = [NSValue valueWithCGRect:view.frame];
+                objc_setAssociatedObject(view, &kDKHangoutFrameKey, stored,
+                                         OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            }
+            CGRect frame = stored.CGRectValue;
+            CGFloat rootHeight = CGRectGetHeight(root.bounds);
+            CGFloat barHeight = CGRectGetHeight(glass.bounds);
+            if (fabs(CGRectGetMaxY(frame) - (rootHeight - barHeight)) <= 1.0) {
+                frame.size.height += barHeight;
+                if (!CGRectEqualToRect(view.frame, frame)) view.frame = frame;
+            }
+            return;
+        }
+        [pending addObjectsFromArray:view.subviews];
+    }
+}
+
+%hook AWEDCFeedListViewController
+
+- (void)viewWillLayoutSubviews {
+    %orig;
+    DKExtendHangoutContent([(UIViewController *)self viewIfLoaded]);
+}
+
+%end

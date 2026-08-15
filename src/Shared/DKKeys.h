@@ -52,6 +52,8 @@ static NSString *const DKKeyGlassTabBar      = @"DYKillerGlassTabBar";
 static NSString *const DKKeyGlassTabBarClear = @"DYKillerGlassTabBarClear";
 // 按底栏每个按钮下方内容的明暗分别切换模板标题颜色。
 static NSString *const DKKeyGlassTabBarAutoTint = @"DYKillerGlassTabBarAutoTint";
+// 完全隐藏主底栏及其悬浮玻璃效果
+static NSString *const DKKeyHideBottomBar    = @"DYKillerHideBottomBar";
 
 #pragma mark - 功能组：音频可视化
 
