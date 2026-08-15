@@ -48,6 +48,11 @@ static void DKAddNetworkLog(NSString *url, NSString *method, NSInteger statusCod
     }
 }
 
+static BOOL DKNetworkLoggerActive(void) {
+    id val = [[NSUserDefaults standardUserDefaults] objectForKey:DKKeyNetworkLoggerEnabled];
+    return val ? [val boolValue] : YES;
+}
+
 %group DKNetworkLoggerGroup
 
 %hook TTNetworkManager
@@ -60,7 +65,7 @@ static void DKAddNetworkLog(NSString *url, NSString *method, NSInteger statusCod
  responseSerializer:(Class)responseSerializer
          autoResume:(BOOL)autoResume
            callback:(id)callback {
-    if (DKPrefBool(DKKeyNetworkLoggerEnabled)) {
+    if (DKNetworkLoggerActive()) {
         DKAddNetworkLog(urlPath, method, 200);
     }
     return %orig;
@@ -71,11 +76,12 @@ static void DKAddNetworkLog(NSString *url, NSString *method, NSInteger statusCod
                      params:(NSDictionary *)params
                headerFields:(NSDictionary *)headerFields
                    callback:(id)callback {
-    if (DKPrefBool(DKKeyNetworkLoggerEnabled)) {
+    if (DKNetworkLoggerActive()) {
         DKAddNetworkLog(urlPath, method, 200);
     }
     return %orig;
 }
+
 
 %end
 
