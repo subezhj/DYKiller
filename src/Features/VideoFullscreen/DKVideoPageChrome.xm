@@ -606,10 +606,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     }
 }
 
-
-
 %hook AWEDPlayerFeedPlayerViewController
-
 
 - (void)viewDidLayoutSubviews {
     %orig;
@@ -629,9 +626,8 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 
 %end
 
-// DKVideoFeedTable.xm 也在同一个方法上挂了一层（HUD 高度的布局后补正），两处分属两个功能、
-
-// 各自跟着自己的模块走，串联生效，互不依赖。
+// 参考 DYYY 全屏机制：作品页/详情页保持原生 HUD 容器高度，背景视频单独拉满，
+// 靠原生 Stack 机制排版，彻底解决文案偏低与合集栏重叠问题。
 %hook AWEPlayInteractionViewController
 
 - (void)viewDidLayoutSubviews {
@@ -640,8 +636,24 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
         DKHUDStatusBarCoverSync(self);
         DKSyncSearchDetailChrome(self);
     }
-}
 
+    if (DKVideoGeometryOn() && DKViewIsInsideClass(self.viewIfLoaded, @"AWEAwemeDetailTableViewCell")) {
+        if (!DKNavigationCameFromSearch(self)) {
+            UIView *view = self.viewIfLoaded;
+            if (view && view.superview) {
+                CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
+                if (superviewHeight > 700.0) {
+                    CGFloat targetHeight = superviewHeight - 75.0; // 预留原生底栏空间，保持 HUD 完美排版
+                    if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
+                        CGRect frame = view.frame;
+                        frame.size.height = targetHeight;
+                        view.frame = frame;
+                    }
+                }
+            }
+        }
+    }
+}
 
 %end
 
