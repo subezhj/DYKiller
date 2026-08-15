@@ -627,7 +627,28 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 %end
 
 // 参考 DYYY 全屏机制：作品页/详情页保持原生 HUD 容器高度，背景视频单独拉满，
-// 靠原生 Stack 机制排版，彻底解决文案偏低与合集栏重叠问题。
+static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
+    NSString *refer = nil;
+    if ([interaction respondsToSelector:@selector(referString)]) {
+        refer = [interaction performSelector:@selector(referString)];
+    }
+    if (!refer || refer.length == 0) return YES;
+    if ([refer isEqualToString:@"general_search"] ||
+        [refer isEqualToString:@"search_result"] ||
+        [refer isEqualToString:@"search_ecommerce"] ||
+        [refer isEqualToString:@"chat"] ||
+        [refer isEqualToString:@"close_friends_moment"] ||
+        [refer isEqualToString:@"offline_mode"] ||
+        [refer isEqualToString:@"challenge"]) {
+        return YES;
+    }
+    if (DKNavigationCameFromSearch(interaction)) return YES;
+    return NO;
+}
+
+// 完全对齐 DYYY 全屏判定逻辑：
+//   · 群聊视频 (chat)、经验视频 (search_result/general_search)、关怀模式拉满 (874pt)；
+//   · 仅在用户个人主页作品页 (personal_homepage/others_homepage) 预留 75pt 保持原生 Stack 自动排版。
 %hook AWEPlayInteractionViewController
 
 - (void)viewDidLayoutSubviews {
@@ -638,17 +659,16 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     }
 
     if (DKVideoGeometryOn() && DKViewIsInsideClass(self.viewIfLoaded, @"AWEAwemeDetailTableViewCell")) {
-        if (!DKNavigationCameFromSearch(self)) {
-            UIView *view = self.viewIfLoaded;
-            if (view && view.superview) {
-                CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
-                if (superviewHeight > 700.0) {
-                    CGFloat targetHeight = superviewHeight - 75.0; // 预留原生底栏空间，保持 HUD 完美排版
-                    if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
-                        CGRect frame = view.frame;
-                        frame.size.height = targetHeight;
-                        view.frame = frame;
-                    }
+        UIView *view = self.viewIfLoaded;
+        if (view && view.superview) {
+            CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
+            if (superviewHeight > 700.0) {
+                BOOL useFull = DKInteractionUsesFullHeight(self);
+                CGFloat targetHeight = useFull ? superviewHeight : (superviewHeight - 75.0);
+                if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
+                    CGRect frame = view.frame;
+                    frame.size.height = targetHeight;
+                    view.frame = frame;
                 }
             }
         }
