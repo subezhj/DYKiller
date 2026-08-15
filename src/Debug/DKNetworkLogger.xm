@@ -81,6 +81,10 @@ static void DKAddNetworkLog(NSString *url, NSString *method, NSInteger statusCod
 
 %end
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 NSString *DKNetworkLoggerReport(void) {
     NSMutableArray *logs = DKGetNetworkLogs();
     NSMutableString *outStr = [NSMutableString string];
@@ -96,6 +100,11 @@ NSString *DKNetworkLoggerReport(void) {
     }
     return [outStr copy];
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 
 %ctor {
     %init(DKNetworkLoggerGroup);
