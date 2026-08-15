@@ -142,6 +142,24 @@ CGRect DKVideoFeedTableAdjustFrame(UITableView *table, CGRect frame) {
 
 %end
 
+%hook AWEAwemeDetailTableView
+
+- (void)setFrame:(CGRect)frame {
+    if (DKVideoFullscreenOn()) {
+        CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
+        if (screenHeight > 0 && frame.size.height > 0) {
+            CGFloat remainder = fmod(frame.size.height, screenHeight);
+            if (remainder != 0) {
+                frame.size.height += (screenHeight - remainder);
+            }
+        }
+    }
+    %orig(frame);
+}
+
+%end
+
+
 #pragma mark - HUD 钉位
 
 // 由 DKVideoGeometry.xm 的总入口调用，调用方已确认写入方是 AWEPlayInteractionViewController。
