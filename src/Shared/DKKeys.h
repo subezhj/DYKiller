@@ -84,6 +84,11 @@ static NSString *const DKKeyHideSearchTrendingBoard = @"DYKillerHideSearchTrendi
 // 搜索中间页隐藏“猜你想搜”推荐词区域，保留历史搜索与热榜。
 static NSString *const DKKeyHideSearchRecommend = @"DYKillerHideSearchRecommend";
 
+#pragma mark - 功能组：净化与网络拦截
+
+// 拦截广告推送、监控埋点、活动挂件及垃圾资源联网请求。
+static NSString *const DKKeyBlockJunkResources = @"DYKillerBlockJunkResources";
+
 #pragma mark - 功能组：调试工具
 
 static NSString *const DKKeyDebugInspectorEnabled = @"DYKillerDebugInspectorEnabled";
