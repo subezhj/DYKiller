@@ -612,13 +612,28 @@ static char kDKOuterBackgroundHiddenKey;
 static char kDKSkinOriginalHiddenKey;
 
 static void DKGlassSyncSkinViewsInTree(UIView *view, BOOL visible) {
-    if ([NSStringFromClass(view.class) isEqualToString:@"AWETabBarSkinView"]) {
+    if (!view) return;
+    NSString *name = NSStringFromClass(view.class);
+    BOOL isSkinOrBg = [name containsString:@"Skin"]
+        || [name containsString:@"Background"]
+        || [name containsString:@"blur"]
+        || [name containsString:@"separator"]
+        || [view isKindOfClass:UIVisualEffectView.class];
+
+    BOOL isKeyComponent = (view == gBar || view == gPlusKey
+        || [name containsString:@"Button"] || [name containsString:@"Label"]
+        || [name containsString:@"Badge"] || [name containsString:@"Icon"]
+        || [name containsString:kDKPlatterClass]);
+
+    if (isSkinOrBg && !isKeyComponent) {
         if (!objc_getAssociatedObject(view, &kDKSkinOriginalHiddenKey)) {
             objc_setAssociatedObject(view, &kDKSkinOriginalHiddenKey, @(view.hidden),
                                      OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         }
         view.hidden = visible ? [objc_getAssociatedObject(view, &kDKSkinOriginalHiddenKey) boolValue] : YES;
+        view.alpha = visible ? 1.0 : 0.0;
     }
+
     for (UIView *subview in view.subviews) {
         if (subview == gBar || subview == gPlusKey) continue;
         DKGlassSyncSkinViewsInTree(subview, visible);
@@ -641,8 +656,6 @@ static void DKGlassApplyTransparentBarBackground(UITabBar *bar) {
     bar.backgroundColor = UIColor.clearColor;
     bar.layer.backgroundColor = UIColor.clearColor.CGColor;
 
-    // iOS 26 floating provider 在部分页面仍会留下全幅背景子层；只隐藏
-    // _UIBarBackground/UIVisualEffectView 等外层，保留 platter 胶囊和按钮树。
     for (UIView *subview in bar.subviews) {
         NSString *name = NSStringFromClass(subview.class);
         BOOL isPlatter = [name containsString:kDKPlatterClass];
@@ -654,6 +667,7 @@ static void DKGlassApplyTransparentBarBackground(UITabBar *bar) {
                                          @(subview.hidden), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             }
             subview.hidden = YES;
+            subview.alpha = 0.0;
         }
     }
 }
@@ -701,6 +715,10 @@ static void DKGlassLayoutGlass(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios
 // 驱动点是抖音底栏的 layoutSubviews，每帧都会走到这里，因此所有写入都必须先比较：
 // 值没变还照写会让 UITabBar 反复重新布局，把系统的选中状态与长按拖动手势冲掉。
 static void DKGlassSetDouyinContentVisible(AWENormalModeTabBar *douyinBar, NSArray *buttons, BOOL visible) {
+    douyinBar.backgroundColor = visible ? nil : UIColor.clearColor;
+    douyinBar.layer.backgroundColor = visible ? nil : UIColor.clearColor.CGColor;
+    douyinBar.opaque = visible;
+
     float opacity = visible ? 1.0f : 0.0f;
     NSArray *backdrops = @[ DKGlassValue(douyinBar, @"backgroundView") ?: NSNull.null,
                             DKGlassValue(douyinBar, @"awe_blurView") ?: NSNull.null,
@@ -708,8 +726,10 @@ static void DKGlassSetDouyinContentVisible(AWENormalModeTabBar *douyinBar, NSArr
                             DKGlassValue(douyinBar, @"skinContainerView") ?: NSNull.null ];
     for (id backdrop in backdrops) {
         if (![backdrop isKindOfClass:UIView.class]) continue;
-        CALayer *layer = ((UIView *)backdrop).layer;
-        if (layer.opacity != opacity) layer.opacity = opacity;
+        UIView *view = (UIView *)backdrop;
+        if (view.layer.opacity != opacity) view.layer.opacity = opacity;
+        view.hidden = !visible;
+        view.alpha = opacity;
     }
     for (id button in buttons) {
         if (![button isKindOfClass:UIView.class]) continue;
@@ -801,26 +821,78 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 
 - (void)layoutSubviews {
     %orig;
-    if (DKPrefBool(DKKeyHideBottomBar)) {
-        self.hidden = YES;
-        if (gBar) gBar.hidden = YES;
-        if (gPlusKey) gPlusKey.hidden = YES;
-        return;
+    if (@available(iOS 26.0, *)) {
+        if (DKGlassTabBarEnabled()) {
+            self.backgroundColor = UIColor.clearColor;
+            self.layer.backgroundColor = UIColor.clearColor.CGColor;
+            self.opaque = NO;
+            DKGlassUpdate(self);
+        }
     }
-    if (@available(iOS 26.0, *)) DKGlassUpdate(self);
-}
-
-- (void)setHidden:(BOOL)hidden {
-    if (DKPrefBool(DKKeyHideBottomBar)) {
-        %orig(YES);
-        if (gBar) gBar.hidden = YES;
-        if (gPlusKey) gPlusKey.hidden = YES;
-        return;
-    }
-    %orig(hidden);
 }
 
 %end
+
+%hook AWETabBarSkinContainerView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKGlassTabBarEnabled()) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+    }
+}
+
+- (void)setHidden:(BOOL)hidden {
+    if (DKGlassTabBarEnabled()) {
+        %orig(YES);
+    } else {
+        %orig(hidden);
+    }
+}
+
+%end
+
+%hook AWETabBarSkinView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKGlassTabBarEnabled()) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+    }
+}
+
+- (void)setHidden:(BOOL)hidden {
+    if (DKGlassTabBarEnabled()) {
+        %orig(YES);
+    } else {
+        %orig(hidden);
+    }
+}
+
+%end
+
+%hook AWEHPTabBarButtonTransitionBackgroundView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKGlassTabBarEnabled()) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+    }
+}
+
+- (void)setHidden:(BOOL)hidden {
+    if (DKGlassTabBarEnabled()) {
+        %orig(YES);
+    } else {
+        %orig(hidden);
+    }
+}
+
+%end
+
 
 // 角标变化不一定伴随底栏重新布局（收到推送时就不会），故在抖音写入角标的两个入口上
 // 立即重跑一次同步。逐帧同步只兜稳态。
