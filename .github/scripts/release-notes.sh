@@ -18,5 +18,5 @@ cat > "${notes_file}" <<NOTES
 - Rootful: \`DYKiller_${version}_arm-rootful.deb\`
 - Rootless: \`DYKiller_${version}_arm64-rootless.deb\`
 - Roothide: \`DYKiller_${version}_arm64e-roothide.deb\`
-- Dylib: \`DYKiller.dylib\`
+- Dylib: \`DYKiller_${version}.dylib\`
 NOTES

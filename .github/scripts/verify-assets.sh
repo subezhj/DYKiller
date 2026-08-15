@@ -12,7 +12,7 @@ expected_assets=(
     "packages/DYKiller_${version}_arm-rootful.deb"
     "packages/DYKiller_${version}_arm64-rootless.deb"
     "packages/DYKiller_${version}_arm64e-roothide.deb"
-    "packages/DYKiller.dylib"
+    "packages/DYKiller_${version}.dylib"
 )
 
 for asset in "${expected_assets[@]}"; do
