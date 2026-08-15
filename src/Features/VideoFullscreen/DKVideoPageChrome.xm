@@ -551,13 +551,17 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     UIView *hud = interaction.viewIfLoaded;
     Class stackClass = NSClassFromString(@"AWEElementStackView");
     if (!hud || !stackClass) return;
-    BOOL active = DKVideoFullscreenOn()
-        && DKViewIsInsideClass(hud, @"AWEAwemeDetailTableViewCell")
-        && DKNavigationCameFromSearch(interaction);
 
+    BOOL isDetailCell = DKViewIsInsideClass(hud, @"AWEAwemeDetailTableViewCell");
+    BOOL active = DKVideoFullscreenOn() && isDetailCell;
 
-    CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 0.0;
-    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - safeBottom;
+    CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 34.0;
+    BOOL fromSearch = DKNavigationCameFromSearch(interaction);
+
+    // 搜索视频避让底栏 safeBottom；用户作品页/个人主页留出 48pt 避让边距，避免文案紧贴最底边
+    CGFloat bottomMargin = fromSearch ? safeBottom : (safeBottom + 48.0);
+    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - bottomMargin;
+
     for (UIView *view in hud.subviews) {
         if (![view isKindOfClass:stackClass]) continue;
         CGFloat width = CGRectGetWidth(view.bounds);
@@ -584,7 +588,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
                                      OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         }
         CGFloat delta = targetBottom - CGRectGetMaxY(nativeFrame);
-        if (delta <= kDKSignatureTolerance) continue;
+        if (fabs(delta) <= kDKSignatureTolerance) continue;
         CGRect adjusted = nativeFrame;
         adjusted.origin.y += delta;
         objc_setAssociatedObject(view, &kDKSearchChromeAppliedFrameKey,
@@ -593,6 +597,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
         if (!CGRectEqualToRect(view.frame, adjusted)) view.frame = adjusted;
     }
 }
+
 
 %hook AWEDPlayerFeedPlayerViewController
 
