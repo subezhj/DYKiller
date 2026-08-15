@@ -304,6 +304,9 @@ static void DKEnsureDebugWindow(void) {
 - (void)showDebugMenu {
     if (!DKPrefBool(DKKeyDebugInspectorEnabled)) return;
 
+    BOOL netLoggerOn = DKPrefBool(DKKeyNetworkLoggerEnabled);
+    NSString *netLoggerTitle = netLoggerOn ? @"API抓包日志：已开启 (点击关闭)" : @"API抓包日志：已关闭 (点击开启)";
+
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"DYKiller Debug"
                                                                    message:nil
                                                             preferredStyle:UIAlertControllerStyleActionSheet];
@@ -316,6 +319,13 @@ static void DKEnsureDebugWindow(void) {
                                               style:UIAlertActionStyleDefault
                                             handler:^(__unused UIAlertAction *action) {
         [self showAudioStateMenu];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:netLoggerTitle
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(__unused UIAlertAction *action) {
+        BOOL newStatus = !netLoggerOn;
+        [[NSUserDefaults standardUserDefaults] setBool:newStatus forKey:DKKeyNetworkLoggerEnabled];
+        [[NSUserDefaults standardUserDefaults] synchronize];
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"关闭" style:UIAlertActionStyleCancel handler:nil]];
     if (alert.popoverPresentationController) {
