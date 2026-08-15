@@ -81,6 +81,22 @@ static void DKAddNetworkLog(NSString *url, NSString *method, NSInteger statusCod
 
 %end
 
+NSString *DKNetworkLoggerReport(void) {
+    NSMutableArray *logs = DKGetNetworkLogs();
+    NSMutableString *outStr = [NSMutableString string];
+    [outStr appendString:@"=== DYKiller API Network Logger Report ===\n"];
+    @synchronized (logs) {
+        if (logs.count == 0) {
+            [outStr appendString:@"(No network requests captured yet)\n"];
+        } else {
+            for (DKNetworkRequestLog *log in logs) {
+                [outStr appendFormat:@"[%@] %@ %ld %@\n", log.dateString, log.method, (long)log.statusCode, log.url];
+            }
+        }
+    }
+    return [outStr copy];
+}
+
 %ctor {
     %init(DKNetworkLoggerGroup);
     DKSettingsRegisterItem(@"调试", ^AWESettingItemModel *{

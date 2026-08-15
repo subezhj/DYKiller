@@ -274,10 +274,13 @@ DKDebugExportResult *DKDebugCreateExport(DKDebugExportContext *context,
         return nil;
     }
 
+    extern NSString *DKNetworkLoggerReport(void);
     DKExportSink *sink = [[DKExportSink alloc] initWithRootDir:rootDir];
     DKWriteString(sink, @"README.txt", DKReadme(context, mode), mode == DKDebugExportModeAudio);
     DKWriteData(sink, @"ui/screenshot.png", context.screenshotPNG, NO);
     DKWriteString(sink, @"probe/tabbar.txt", context.probeText, NO);
+    DKWriteString(sink, @"probe/network_requests.txt", DKNetworkLoggerReport() ?: @"", NO);
+
 
     if (mode == DKDebugExportModeAudio) {
         DKWriteAudioFiles(sink, context.audioCapture, progress);
