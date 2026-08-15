@@ -11,5 +11,5 @@ make package-roothide FINALPACKAGE=1
 
 version=$(awk -F': *' '$1 == "Version" { print $2; exit }' control)
 if [[ -f "packages/DYKiller.dylib" ]]; then
-    cp "packages/DYKiller.dylib" "packages/DYKiller_${version}.dylib"
+    mv "packages/DYKiller.dylib" "packages/DYKiller_${version}.dylib"
 fi
