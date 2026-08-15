@@ -22,6 +22,7 @@
 
 ## 项目架构
 
+> 详细的技术设计与 Douyin 页面分区分析文档，请参阅 [DOCS/FULLSCREEN_LAYOUT.md](DOCS/FULLSCREEN_LAYOUT.md)。
 
 ```text
 DYKiller/             
