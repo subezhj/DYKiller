@@ -1,7 +1,8 @@
 //
 //  DKFavoriteGlassBackdrop.xm
-//  收藏页的嵌套 Tab 内容只到 605pt，喜欢页列表则铺满 874pt。
-//  悬浮玻璃底栏开启时把收藏内容多延伸一个底栏高度，让胶囊后方显示列表而不是白底。
+//  收藏页的嵌套 Tab 内容只到 605pt，喜欢页列表则铺满 874pt；团购列表底边也停在 799pt。
+//  悬浮玻璃底栏开启时只对这两条已验证结构补一个底栏高度。
+//  精选内容本身已是 874pt，不改 frame，只由 DKGlassTabBar 隐藏外层 SkinView。
 //
 
 #import "DKGlassTabBar.h"
@@ -82,6 +83,54 @@ static void DKExtendFavoriteContent(UIView *root) {
 - (void)viewWillLayoutSubviews {
     %orig;
     DKExtendFavoriteContent([(UIViewController *)self viewIfLoaded]);
+}
+
+%end
+
+static char kDKGrouponFrameKey;
+
+static void DKExtendGrouponContent(UIView *root) {
+    UITabBar *glass = DKGlassTabBarCurrent();
+    Class collectionClass = NSClassFromString(@"AWEGrouponC2CollectionView");
+    if (!root || !collectionClass) return;
+
+    NSMutableArray<UIView *> *pending = [NSMutableArray arrayWithObject:root];
+    while (pending.count) {
+        UIView *view = pending.lastObject;
+        [pending removeLastObject];
+        if (![view isKindOfClass:collectionClass]) {
+            [pending addObjectsFromArray:view.subviews];
+            continue;
+        }
+
+        NSValue *stored = objc_getAssociatedObject(view, &kDKGrouponFrameKey);
+        if (!glass) {
+            if (stored) view.frame = stored.CGRectValue;
+            objc_setAssociatedObject(view, &kDKGrouponFrameKey, nil,
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            return;
+        }
+        if (!stored) {
+            stored = [NSValue valueWithCGRect:view.frame];
+            objc_setAssociatedObject(view, &kDKGrouponFrameKey, stored,
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        CGRect frame = stored.CGRectValue;
+        CGFloat rootHeight = CGRectGetHeight(root.bounds);
+        CGFloat barHeight = CGRectGetHeight(glass.bounds);
+        if (fabs(CGRectGetMaxY(frame) - (rootHeight - barHeight)) <= 1.0) {
+            frame.size.height += barHeight;
+            if (!CGRectEqualToRect(view.frame, frame)) view.frame = frame;
+        }
+        return;
+    }
+}
+
+%hook AWEGrouponC2ContainerViewController
+
+- (void)viewWillLayoutSubviews {
+    %orig;
+    DKExtendGrouponContent([(UIViewController *)self viewIfLoaded]);
 }
 
 %end
