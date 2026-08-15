@@ -838,8 +838,8 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 - (void)layoutSubviews {
     %orig;
     if (DKGlassTabBarEnabled()) {
-        self.hidden = YES;
-        self.alpha = 0.0;
+        ((UIView *)self).hidden = YES;
+        ((UIView *)self).alpha = 0.0;
     }
 }
 
@@ -858,8 +858,8 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 - (void)layoutSubviews {
     %orig;
     if (DKGlassTabBarEnabled()) {
-        self.hidden = YES;
-        self.alpha = 0.0;
+        ((UIView *)self).hidden = YES;
+        ((UIView *)self).alpha = 0.0;
     }
 }
 
@@ -878,8 +878,8 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 - (void)layoutSubviews {
     %orig;
     if (DKGlassTabBarEnabled()) {
-        self.hidden = YES;
-        self.alpha = 0.0;
+        ((UIView *)self).hidden = YES;
+        ((UIView *)self).alpha = 0.0;
     }
 }
 
@@ -892,6 +892,7 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 }
 
 %end
+
 
 
 // 角标变化不一定伴随底栏重新布局（收到推送时就不会），故在抖音写入角标的两个入口上
