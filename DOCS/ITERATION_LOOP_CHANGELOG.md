@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta91`** | 1. 加回全屏播放横屏按钮 `AWELandscapeFeedEntryView`；<br>2. 修复二级详情页无 TabBar 时出现的 75pt 底部黑条 | 1. 从极简控件与渲染优化隐藏列表中剔除 `AWELandscapeFeedEntryView`；<br>2. 在 `AWEAwemeDetailTableViewCell` 中将 `targetHeight` 强制拉满 `superviewHeight` (874pt)，彻底消灭底部黑条 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta90`** | CI 编译阶段 `DouyinHeaders.h` 中 `AWEFeedProgressSlider` 重复声明接口报错 | 移除重复前向声明，保持唯一声明引用，彻底解除 Clang 重定义错误 | `DouyinHeaders.h`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta89`** | 验证 `1786890467` 日志：抖音原生清屏/放大视频 (`PureModePageCellViewController`) 默认隐藏进度条并淡出至 `alpha=0` | 挂钩 `AWEFeedProgressSlider` 与 `AWEDPlayerProgressContainerView` 的 `setAlpha:` 及 `setHidden:`，强阻原生清屏模式淡出进度条，实现放大清屏持续显示完整进度条 | `DKFluidGestures.xm`<br>`DouyinHeaders.h`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta88`** | 彻底修复调试录制状态同步、按键变红延迟、导出后状态残留及 `snapshots/stepN/` 多页快照落盘 | 1. `gDKIsCapturingLogs` 状态同步设置并联动 `viewWillAppear` 实时刷红/恢复暗色；<br>2. 正式落盘 `snapshots/step1/`、`snapshots/step2/` 多页快照文件夹 | `DKHookLogger.mm`<br>`DKDebugExport.m`<br>`DKDebugInspector.m`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |

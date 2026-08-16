@@ -391,8 +391,7 @@ static void DKApplyMode2AspectFit(UIView *playerView) {
                 if ([cls isEqualToString:@"AWEGradientView"] ||
                     (DKPrefBool(DKKeyZenFeedUIEnabled) &&
                      ([cls isEqualToString:@"AWEAwemePlayVideoPauseIcon"] ||
-                      [cls isEqualToString:@"AWEAwemePlayletWaterMarkView"] ||
-                      [cls isEqualToString:@"AWELandscapeFeedEntryView"]))) {
+                      [cls isEqualToString:@"AWEAwemePlayletWaterMarkView"]))) {
                     sub.hidden = YES;
                 }
             }
@@ -908,8 +907,7 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
         if (view) {
             for (UIView *sub in view.subviews) {
                 NSString *cls = NSStringFromClass(sub.class);
-                if ([cls isEqualToString:@"AWEAwemePlayletWaterMarkView"] ||
-                    [cls isEqualToString:@"AWELandscapeFeedEntryView"]) {
+                if ([cls isEqualToString:@"AWEAwemePlayletWaterMarkView"]) {
                     sub.hidden = YES;
                 }
             }
@@ -926,8 +924,8 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
         if (view && view.superview) {
             CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
             if (superviewHeight > 700.0) {
-                BOOL useFull = DKInteractionUsesFullHeight(self);
-                CGFloat targetHeight = useFull ? superviewHeight : (superviewHeight - 75.0);
+                // 在二级详情页与作品播放页中，无 TabBar，必须保持 100% 满高 (874pt)，彻底杜绝底部 75pt 黑条
+                CGFloat targetHeight = superviewHeight;
                 if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
                     CGRect frame = view.frame;
                     frame.size.height = targetHeight;
