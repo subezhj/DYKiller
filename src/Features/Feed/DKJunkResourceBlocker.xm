@@ -126,9 +126,44 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 - (void)layoutSubviews {
     %orig;
-    if (DKPrefBool(DKKeyBlockJunkResources)) {
+    if (DKPrefBool(DKKeyBlockJunkResources) || DKPrefBool(DKKeyBlockMarketingLayers)) {
         if (!self.hidden) self.hidden = YES;
         if (self.alpha != 0.0) self.alpha = 0.0;
+    }
+}
+
+%end
+
+%hook AWEAwemePlayletWaterMarkView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKPrefBool(DKKeyBlockMarketingLayers)) {
+        self.hidden = YES;
+        self.frame = CGRectZero;
+    }
+}
+
+%end
+
+%hook AWECommercePendantView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKPrefBool(DKKeyBlockMarketingLayers)) {
+        self.hidden = YES;
+        self.frame = CGRectZero;
+    }
+}
+
+%end
+
+%hook AWECommerceAnchorView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKPrefBool(DKKeyBlockMarketingLayers)) {
+        self.hidden = YES;
     }
 }
 
@@ -143,6 +178,13 @@ static BOOL DKIsJunkURL(NSString *urlString) {
             DKKeyBlockJunkResources,
             @"垃圾资源与网络拦截",
             @"拦截广告推送、监控埋点、活动挂件及垃圾资源联网请求，降低数据流量与后台耗电"
+        );
+    });
+    DKSettingsRegisterItem(@"净化", ^AWESettingItemModel *{
+        return DKMakeSwitch(
+            DKKeyBlockMarketingLayers,
+            @"拦截营销挂件与广告图层",
+            @"屏蔽短剧水文引流、带货黄小鸭浮窗与活动广告挂件（不影响正常视频预加载）"
         );
     });
 }

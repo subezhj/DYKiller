@@ -383,6 +383,17 @@ static void DKApplyMode2AspectFit(UIView *playerView) {
     if (DKIsUnderRichContent(self)) return;
     DKSyncBackdrop(self, self.viewIfLoaded, DKPlayerBackdropColor(self));
 
+    if (DKPrefBool(DKKeyOptimizeRenderPipeline)) {
+        UIView *view = self.viewIfLoaded;
+        if (view) {
+            for (UIView *sub in view.subviews) {
+                if ([NSStringFromClass(sub.class) isEqualToString:@"AWEGradientView"]) {
+                    sub.hidden = YES;
+                }
+            }
+        }
+    }
+
     if (DKVideoFullscreenModeValue() == 2) {
         UIView *playerView = [self respondsToSelector:@selector(playerView)] ? (UIView *)[self performSelector:@selector(playerView)] : nil;
         DKApplyMode2AspectFit(playerView);

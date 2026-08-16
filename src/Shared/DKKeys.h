@@ -105,6 +105,10 @@ static NSString *const DKKeyHideSearchRecommend = @"DYKillerHideSearchRecommend"
 
 // 拦截广告推送、监控埋点、活动挂件及垃圾资源联网请求。
 static NSString *const DKKeyBlockJunkResources = @"DYKillerBlockJunkResources";
+// 拦截营销挂件、短剧水印、电商与活动浮层图层（不影响正常视频预加载）。
+static NSString *const DKKeyBlockMarketingLayers = @"DYKillerBlockMarketingLayers";
+// Metal 渲染管道极简优化：剥离渲染层冗余渐变遮罩，提升 GPU 帧合成效率与滑动流畅度。
+static NSString *const DKKeyOptimizeRenderPipeline = @"DYKillerOptimizeRenderPipeline";
 
 #pragma mark - 功能组：画中画与灵动岛
 

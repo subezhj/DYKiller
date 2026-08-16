@@ -286,4 +286,7 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
     DKSettingsRegisterItem(@"高级与播放器", ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyForceNativeAVPlayer, @"iOS 原生 AVPlayer 引擎", @"(实验性) 强切 Apple 原生 AVPlayer 解码，极低功耗，原生锁屏/画中画咬合");
     });
+    DKSettingsRegisterItem(@"高级与播放器", ^AWESettingItemModel *{
+        return DKMakeSwitch(DKKeyOptimizeRenderPipeline, @"Metal 渲染管道极简优化", @"剥离 Metal 视口重叠的 22 层冗余渐变遮罩，大幅降低 GPU 混合渲染开销");
+    });
 }
