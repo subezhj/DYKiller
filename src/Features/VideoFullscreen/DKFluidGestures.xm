@@ -121,8 +121,11 @@ static void DKShowToastHUD(UIView *parentView, NSString *message) {
         sCurrentIndex = (sCurrentIndex + 1) % 5;
         CGFloat targetSpeed = sSpeedRates[sCurrentIndex];
 
-        if ([self respondsToSelector:@selector(setPlaybackRate:)]) {
-            [(id)self setPlaybackRate:targetSpeed];
+        SEL selRate = NSSelectorFromString(@"setPlaybackRate:");
+        if ([self respondsToSelector:selRate]) {
+            typedef void (*DKSetRateIMP)(id, SEL, CGFloat);
+            DKSetRateIMP impFunc = (DKSetRateIMP)[self methodForSelector:selRate];
+            if (impFunc) impFunc(self, selRate, targetSpeed);
         }
 
         NSString *msg = [NSString stringWithFormat:@"🚀 播放倍速切换至: %.2fx", targetSpeed];

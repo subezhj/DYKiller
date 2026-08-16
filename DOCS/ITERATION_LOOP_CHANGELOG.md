@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta75`** | CI 编译阶段 `DKFluidGestures.xm` 中 `setPlaybackRate:` 在 ObjC++ 严苛模式下报无已知选择器错误 | 使用动态函数指针强转 `(DKSetRateIMP)[self methodForSelector:sel]` 调用，彻底解除 Clang 编译隐患 | `DKFluidGestures.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta74`** | DyYY 悬浮图标遮挡画面；低清/压缩短视频模糊昏暗 | 1. **Metal GPU 锐化/彩增强引擎**：`TTMetalViewVP.layer` 注入 `CISharpenLuminance` & `CIColorControls`；<br>2. **0 图标流体手势**：两指捏合切清屏，两指轻击循环切倍速 | `DKFluidGestures.xm`<br>`DKVideoPageChrome.xm`<br>[`0bddd44`](https://github.com/subezhj/DYKiller/commit/0bddd44) |
 | **`0.5.5-beta73`** | CI 编译阶段 `DKMediaIsland.xm` 缺失 `DKLogHookEvent` 声明 | 在 `DKHookLogger.h` 还原补齐 C 函数原型声明 `DKLogHookEvent` | `DKHookLogger.h`<br>[`125390a`](https://github.com/subezhj/DYKiller/commit/125390a) |
 | **`0.5.5-beta72`** | CI 编译阶段 `DKDebugEntry.xm` 误调用未暴露私有函数 `DKStartExport` | 将非法私有函数调用替换为引导弹窗，彻底修复 Clang 编译错 | `DKDebugEntry.xm`<br>[`65d320c`](https://github.com/subezhj/DYKiller/commit/65d320c) |
