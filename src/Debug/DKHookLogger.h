@@ -14,6 +14,9 @@
 extern "C" {
 #endif
 
+/// 记录一次关键 Hook 执行事件
+void DKLogHookEvent(NSString *feature, NSString *hookName, NSString *details);
+
 /// 开启调试数据抓取（重置并开始记录此阶段内发生的 Hook 事件与网络/性能数据）
 void DKStartLogCapture(void);
 
