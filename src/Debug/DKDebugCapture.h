@@ -29,6 +29,8 @@
 @property (nonatomic, copy) NSString *probeText;
 /// 音频专项模式的五秒采样产物；普通页面/全类导出时为 nil。
 @property (nonatomic, strong) DKAudioProbeCapture *audioCapture;
+@property (nonatomic, assign) NSInteger stepIndex;
+@property (nonatomic, strong) NSArray<DKDebugExportContext *> *stepContexts;
 @property (nonatomic, weak) UIView *sourceView;
 @property (nonatomic, weak) UIViewController *presenter;
 @end

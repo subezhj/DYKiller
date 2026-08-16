@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta87`** | CI 编译阶段 `DKDebugCaptureContext` 调用参数与头文件属性匹配修复 | 补充 `DKDebugCapture.h` 中 `stepIndex` / `stepContexts` 属性，修正 `DKDebugCaptureContext` 3 参数调用 | `DKDebugCapture.h`<br>`DKDebugInspector.m`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta86`** | 落地快捷手势调试引擎：录制中「单击小钥匙」秒抓快照，「长按 0.8s」打包导出 ZIP | **快捷手势多页调试交互**：`handleWrenchTap` 实现无打扰秒级快照 + 触觉震动 + 缩放反馈；`handleWrenchLongPress` 实现长按快捷完成导出打包 | `DKDebugInspector.m`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta85`** | 重构调试录制流程：1. 开启抓取时立即变红高亮；2. 增加【📸 捕抓当前页快照】多页序列采集；3. 精简设置菜单无用冗余按钮 | **多页快照多段录制架构**：支持按页采集 `step1_`, `step2_` 图层与视图树快照，且开启后小钥匙高亮亮红白色边框 | `DKDebugInspector.m`<br>`DKDebugCapture.h`<br>`DKDebugExport.m`<br>`DKDebugEntry.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta84`** | 用户在两指捏合切清屏/放大视频时，希望能保留完整/可拖拽的底层视频进度条 | **清屏模式保留进度条系统** (`DKKeyKeepProgressInCleanMode`)：在 `dk_handleFluidPinch` 中精准过滤并保留 `AWEDPlayerProgressContainerView` / `AWEFeedProgressSlider` 透明度为 1.0 且可交互 | `DKFluidGestures.xm`<br>`DKVideoGeometry.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |

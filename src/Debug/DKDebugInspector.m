@@ -350,7 +350,7 @@ static NSMutableArray<DKDebugExportContext *> *gDKStepSnapshots = nil;
 - (void)handleWrenchTap {
     if (DKIsLogCapturing()) {
         // 录制模式下，单击直接秒抓当前页快照
-        DKDebugExportContext *stepCtx = DKDebugCaptureContext(self);
+        DKDebugExportContext *stepCtx = DKDebugCaptureContext(DKDebugTargetWindow(), CGPointZero, nil);
         if (stepCtx) {
             if (!gDKStepSnapshots) gDKStepSnapshots = [NSMutableArray array];
             stepCtx.stepIndex = gDKStepSnapshots.count + 1;
@@ -398,7 +398,7 @@ static NSMutableArray<DKDebugExportContext *> *gDKStepSnapshots = nil;
             DKStopLogCapture();
             [self updateWrenchAppearance];
 
-            DKDebugExportContext *context = DKDebugCaptureContext(self);
+            DKDebugExportContext *context = DKDebugCaptureContext(DKDebugTargetWindow(), CGPointZero, nil);
             if (context) {
                 context.stepContexts = [gDKStepSnapshots copy];
             }
@@ -485,7 +485,7 @@ BOOL DKToggleFLEXExplorer(void) {
                                                 handler:^(__unused UIAlertAction *action) {
             DKStopLogCapture();
             [self updateWrenchAppearance];
-            DKDebugExportContext *context = DKDebugCaptureContext(self);
+            DKDebugExportContext *context = DKDebugCaptureContext(DKDebugTargetWindow(), CGPointZero, nil);
             if (context) {
                 context.stepContexts = [gDKStepSnapshots copy];
             }
