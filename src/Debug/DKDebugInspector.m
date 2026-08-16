@@ -283,6 +283,11 @@ static void DKEnsureDebugWindow(void) {
                                                object:nil];
 }
 
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [self updateWrenchAppearance];
+}
+
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
@@ -396,13 +401,14 @@ static NSMutableArray<DKDebugExportContext *> *gDKStepSnapshots = nil;
             }
 
             DKStopLogCapture();
+            NSArray *stepSnapshotsToExport = [gDKStepSnapshots copy];
+            gDKStepSnapshots = nil;
             [self updateWrenchAppearance];
 
             DKDebugExportContext *context = DKDebugCaptureContext(DKDebugTargetWindow(), CGPointZero, nil);
             if (context) {
-                context.stepContexts = [gDKStepSnapshots copy];
+                context.stepContexts = stepSnapshotsToExport;
             }
-            gDKStepSnapshots = nil;
             DKStartExport(context, DKDebugExportModePage);
         } else {
             // 未开启录制时，长按直接快捷开启多页录制

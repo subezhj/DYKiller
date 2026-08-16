@@ -216,6 +216,33 @@ static void DKWritePageFiles(DKExportSink *sink,
     DKWriteString(sink, @"page/view-controllers.txt", context.viewControllersText, NO);
     DKWriteJSON(sink, @"page/layers.json", context.layersJSON ?: @[], NO);
 
+    if (context.stepContexts.count > 0) {
+        if (progress) progress(@"正在打包多页调试快照序列 (snapshots/)...");
+        NSInteger idx = 1;
+        for (DKDebugExportContext *step in context.stepContexts) {
+            NSString *folder = [NSString stringWithFormat:@"snapshots/step%ld", (long)idx];
+            if (step.screenshotPNG) {
+                DKWriteData(sink, [folder stringByAppendingPathComponent:@"screenshot.png"], step.screenshotPNG, NO);
+            }
+            if (step.viewTreeText) {
+                DKWriteString(sink, [folder stringByAppendingPathComponent:@"view-tree.txt"], step.viewTreeText, NO);
+            }
+            if (step.viewControllersText) {
+                DKWriteString(sink, [folder stringByAppendingPathComponent:@"view-controllers.txt"], step.viewControllersText, NO);
+            }
+            if (step.viewTreeJSON) {
+                DKWriteJSON(sink, [folder stringByAppendingPathComponent:@"view-tree.json"], step.viewTreeJSON, NO);
+            }
+            if (step.layersJSON) {
+                DKWriteJSON(sink, [folder stringByAppendingPathComponent:@"layers.json"], step.layersJSON, NO);
+            }
+            if (step.windowsJSON) {
+                DKWriteJSON(sink, [folder stringByAppendingPathComponent:@"windows.json"], step.windowsJSON, NO);
+            }
+            idx++;
+        }
+    }
+
     // 自动落盘 Hook 诊断日志与 CPU/内存/功耗性能评估报告
     DKWriteString(sink, @"probe/hook_events.txt", DKGetHookLogsText() ?: @"", NO);
     DKWriteString(sink, @"probe/performance.txt", DKGetPerformanceMetricsReport() ?: @"", NO);

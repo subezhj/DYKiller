@@ -26,10 +26,10 @@ static void DKInitHookLoggerIfNeeded(void) {
 
 void DKStartLogCapture(void) {
     DKInitHookLoggerIfNeeded();
+    gDKIsCapturingLogs = YES;
+    gDKCaptureStartTime = [NSDate date];
     dispatch_async(gHookLogQueue, ^{
         [gHookLogBuffer removeAllObjects];
-        gDKIsCapturingLogs = YES;
-        gDKCaptureStartTime = [NSDate date];
         NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
         formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss.SSS";
         [gHookLogBuffer addObject:[NSString stringWithFormat:@"=== 调试日志抓取已开启 (%@) ===", [formatter stringFromDate:gDKCaptureStartTime]]];
@@ -38,9 +38,8 @@ void DKStartLogCapture(void) {
 
 void DKStopLogCapture(void) {
     DKInitHookLoggerIfNeeded();
+    gDKIsCapturingLogs = NO;
     dispatch_async(gHookLogQueue, ^{
-        if (!gDKIsCapturingLogs) return;
-        gDKIsCapturingLogs = NO;
         NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
         formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss.SSS";
         NSTimeInterval duration = gDKCaptureStartTime ? [[NSDate date] timeIntervalSinceDate:gDKCaptureStartTime] : 0.0;
