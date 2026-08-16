@@ -35,7 +35,7 @@ static void DKUpdateMediaIslandState(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSError *error = nil;
         AVAudioSession *session = [AVAudioSession sharedInstance];
-        [session setCategory:AVAudioSessionCategoryPlayback withOptions:AVAudioSessionCategoryOptionMixWithOthers error:&error];
+        [session setCategory:AVAudioSessionCategoryPlayback error:&error];
         [session setActive:YES error:&error];
 
         DKSetupRemoteCommandsIfNeeded();
@@ -46,12 +46,18 @@ static void DKUpdateMediaIslandState(void) {
         id defaultCenter = [infoCenterClass performSelector:@selector(defaultCenter)];
         if (!defaultCenter || ![defaultCenter respondsToSelector:@selector(setNowPlayingInfo:)]) return;
 
+        NSString *currentBundleID = [[NSBundle mainBundle] bundleIdentifier] ?: @"com.ss.iphone.ugc.Aweme";
+
         NSMutableDictionary *info = [NSMutableDictionary dictionary];
         info[MPMediaItemPropertyTitle] = @"抖音 · 点击返回前台";
         info[MPMediaItemPropertyArtist] = @"DYKiller 灵动岛直达";
         info[MPNowPlayingInfoPropertyPlaybackRate] = @1.0;
         info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @1.0;
         info[MPMediaItemPropertyPlaybackDuration] = @100.0;
+
+        if (@available(iOS 13.0, *)) {
+            info[MPNowPlayingInfoPropertyServiceIdentifier] = currentBundleID;
+        }
 
         [defaultCenter setNowPlayingInfo:info];
     });
