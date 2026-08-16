@@ -197,12 +197,112 @@ static void DKSyncBackdrop(id owner, UIView *anchor, UIColor *color) {
                              OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
+static BOOL DKIsDarkOrBlackColor(UIColor *color) {
+    if (!color) return YES;
+    CGFloat r = 0, g = 0, b = 0, a = 0;
+    if (![color getRed:&r green:&g blue:&b alpha:&a]) return YES;
+    if (a < 0.1) return YES;
+    CGFloat luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    return luma < 0.18;
+}
+
+static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
+    if (!image || !image.CGImage) return nil;
+    CGImageRef cgImage = image.CGImage;
+    size_t width = CGImageGetWidth(cgImage);
+    size_t height = CGImageGetHeight(cgImage);
+    if (width == 0 || height == 0) return nil;
+
+    uint32_t pixels[16 * 16] = {0};
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(pixels, 16, 16, 8, 16 * 4, colorSpace, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+    CGColorSpaceRelease(colorSpace);
+    if (!context) return nil;
+
+    CGContextDrawImage(context, CGRectMake(0, 0, 16, 16), cgImage);
+    CGContextRelease(context);
+
+    uint64_t sumR = 0, sumG = 0, sumB = 0, count = 0;
+    for (int i = 0; i < 256; i++) {
+        uint32_t p = pixels[i];
+        uint8_t r = (p >> 24) & 0xFF;
+        uint8_t g = (p >> 16) & 0xFF;
+        uint8_t b = (p >> 8) & 0xFF;
+        uint8_t a = p & 0xFF;
+        if (a > 30) {
+            sumR += r;
+            sumG += g;
+            sumB += b;
+            count++;
+        }
+    }
+    if (count == 0) return nil;
+
+    CGFloat r = (CGFloat)(sumR / count) / 255.0;
+    CGFloat g = (CGFloat)(sumG / count) / 255.0;
+    CGFloat b = (CGFloat)(sumB / count) / 255.0;
+
+    CGFloat luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (luma < 0.25) {
+        CGFloat factor = 0.28 / MAX(luma, 0.05);
+        r = MIN(r * factor, 1.0);
+        g = MIN(g * factor, 1.0);
+        b = MIN(b * factor, 1.0);
+    }
+    return [UIColor colorWithRed:r green:g blue:b alpha:1.0];
+}
+
+static UIColor *DKExtractFallbackColorFromController(AWEPlayVideoViewController *controller) {
+    if (!controller) return nil;
+    UIImage *image = nil;
+    if ([controller respondsToSelector:@selector(coverImageView)]) {
+        UIImageView *iv = (UIImageView *)[controller performSelector:@selector(coverImageView)];
+        if (iv && [iv isKindOfClass:[UIImageView class]] && iv.image) image = iv.image;
+    }
+    if (!image && [controller respondsToSelector:@selector(firstFrameImageView)]) {
+        UIImageView *iv = (UIImageView *)[controller performSelector:@selector(firstFrameImageView)];
+        if (iv && [iv isKindOfClass:[UIImageView class]] && iv.image) image = iv.image;
+    }
+    if (!image) {
+        UIView *view = controller.viewIfLoaded;
+        if (view) {
+            for (UIView *sub in view.subviews) {
+                if ([sub isKindOfClass:[UIImageView class]]) {
+                    UIImage *img = ((UIImageView *)sub).image;
+                    if (img && img.size.width > 50 && img.size.height > 50) {
+                        image = img;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    UIColor *extracted = DKExtractDominantColorFromImage(image);
+    if (extracted && !DKIsDarkOrBlackColor(extracted)) {
+        return extracted;
+    }
+
+    return [UIColor colorWithRed:0.12 green:0.15 blue:0.22 alpha:1.0];
+}
+
 // 抖音把横屏智能背景色画在 playerBackgroundView 上；该色在首帧渲染出图后才算出来，
 // 因此同步点必须是抖音自己落色的时刻，而不是 setModel:/setFrame: 这类首帧之前的入口。
 // 仅当背景层确实挂在视图树上并可见时才算「抖音画了背景」，避免跟随已摘除的残留层。
 static UIColor *DKPlayerBackdropColor(AWEPlayVideoViewController *controller) {
     UIView *backdrop = controller.playerBackgroundView;
-    return (backdrop.superview && !backdrop.hidden) ? backdrop.backgroundColor : nil;
+    UIColor *color = (backdrop.superview && !backdrop.hidden) ? backdrop.backgroundColor : nil;
+
+    if (DKVideoFullscreenModeValue() == 2) {
+        if (DKIsDarkOrBlackColor(color)) {
+            UIColor *fallback = DKExtractFallbackColorFromController(controller);
+            if (fallback) {
+                color = fallback;
+                if (backdrop) backdrop.backgroundColor = fallback;
+            }
+        }
+    }
+    return color;
 }
 
 static Class DKRichContentContainerClass(void) {
