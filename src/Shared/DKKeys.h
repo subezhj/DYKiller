@@ -31,6 +31,8 @@ static NSString *const DKKeyMetalVibrantColorEnabled = @"DYKillerMetalVibrantCol
 static NSString *const DKKeyFluidGesturesEnabled = @"DYKillerFluidGesturesEnabled";
 // 开启 iOS 原生 AVPlayer 硬件解码引擎（实验性：极低功耗与内存，原生锁屏/画中画融合）
 static NSString *const DKKeyForceNativeAVPlayer = @"DYKillerForceNativeAVPlayer";
+// 极简控件模式：隐去播放界面冗余挂件与无用浮层，提升视觉清爽度与渲染性能。
+static NSString *const DKKeyZenFeedUIEnabled = @"DYKillerZenFeedUIEnabled";
 
 #pragma mark - 功能组：评论区
 

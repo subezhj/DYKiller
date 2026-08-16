@@ -383,11 +383,16 @@ static void DKApplyMode2AspectFit(UIView *playerView) {
     if (DKIsUnderRichContent(self)) return;
     DKSyncBackdrop(self, self.viewIfLoaded, DKPlayerBackdropColor(self));
 
-    if (DKPrefBool(DKKeyOptimizeRenderPipeline)) {
+    if (DKPrefBool(DKKeyOptimizeRenderPipeline) || DKPrefBool(DKKeyZenFeedUIEnabled)) {
         UIView *view = self.viewIfLoaded;
         if (view) {
             for (UIView *sub in view.subviews) {
-                if ([NSStringFromClass(sub.class) isEqualToString:@"AWEGradientView"]) {
+                NSString *cls = NSStringFromClass(sub.class);
+                if ([cls isEqualToString:@"AWEGradientView"] ||
+                    (DKPrefBool(DKKeyZenFeedUIEnabled) &&
+                     ([cls isEqualToString:@"AWEAwemePlayVideoPauseIcon"] ||
+                      [cls isEqualToString:@"AWEAwemePlayletWaterMarkView"] ||
+                      [cls isEqualToString:@"AWELandscapeFeedEntryView"]))) {
                     sub.hidden = YES;
                 }
             }
@@ -397,6 +402,26 @@ static void DKApplyMode2AspectFit(UIView *playerView) {
     if (DKVideoFullscreenModeValue() == 2) {
         UIView *playerView = [self respondsToSelector:@selector(playerView)] ? (UIView *)[self performSelector:@selector(playerView)] : nil;
         DKApplyMode2AspectFit(playerView);
+    }
+}
+
+%end
+
+%hook AWEPlayInteractionViewController
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (DKPrefBool(DKKeyZenFeedUIEnabled)) {
+        UIView *view = self.viewIfLoaded;
+        if (view) {
+            for (UIView *sub in view.subviews) {
+                NSString *cls = NSStringFromClass(sub.class);
+                if ([cls isEqualToString:@"AWEAwemePlayletWaterMarkView"] ||
+                    [cls isEqualToString:@"AWELandscapeFeedEntryView"]) {
+                    sub.hidden = YES;
+                }
+            }
+        }
     }
 }
 

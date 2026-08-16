@@ -283,6 +283,9 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
     DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyMetalVibrantColorEnabled, @"Metal 画面色彩增强", @"开启智能画质对比度与饱和度调谐，让视频呈现 HDR 通透感");
     });
+    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+        return DKMakeSwitch(DKKeyZenFeedUIEnabled, @"极简控件模式 (极简清爽 UI)", @"隐去视频播放界面冗余挂件与无用浮层，仅保留核心要素，大幅提升画质清爽度");
+    });
     DKSettingsRegisterItem(@"高级与播放器", ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyForceNativeAVPlayer, @"iOS 原生 AVPlayer 引擎", @"(实验性) 强切 Apple 原生 AVPlayer 解码，极低功耗，原生锁屏/画中画咬合");
     });
