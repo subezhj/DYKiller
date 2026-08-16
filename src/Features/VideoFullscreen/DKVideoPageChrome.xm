@@ -227,6 +227,28 @@ static BOOL DKIsUnderRichContent(UIViewController *controller) {
     return NO;
 }
 
+static void DKApplyMode2AspectFit(UIView *playerView) {
+    if (!playerView) return;
+    if (playerView.contentMode != UIViewContentModeScaleAspectFit) {
+        playerView.contentMode = UIViewContentModeScaleAspectFit;
+    }
+    CALayer *layer = playerView.layer;
+    if ([layer respondsToSelector:@selector(setVideoGravity:)]) {
+        NSString *gravity = (NSString *)[layer performSelector:@selector(videoGravity)];
+        if (![gravity isEqualToString:AVLayerVideoGravityResizeAspect]) {
+            [(id)layer setVideoGravity:AVLayerVideoGravityResizeAspect];
+        }
+    }
+    for (CALayer *sub in layer.sublayers) {
+        if ([sub respondsToSelector:@selector(videoGravity)]) {
+            NSString *gravity = (NSString *)[sub performSelector:@selector(videoGravity)];
+            if (![gravity isEqualToString:AVLayerVideoGravityResizeAspect]) {
+                [(id)sub setVideoGravity:AVLayerVideoGravityResizeAspect];
+            }
+        }
+    }
+}
+
 %hook AWEPlayVideoViewController
 
 - (void)setPlayerBackgroundView:(UIView *)backgroundView {
@@ -242,16 +264,7 @@ static BOOL DKIsUnderRichContent(UIViewController *controller) {
 
     if (DKVideoFullscreenModeValue() == 2) {
         UIView *playerView = [self respondsToSelector:@selector(playerView)] ? (UIView *)[self performSelector:@selector(playerView)] : nil;
-        if (playerView) {
-            if ([playerView.layer respondsToSelector:@selector(setVideoGravity:)]) {
-                [(id)playerView.layer setVideoGravity:AVLayerVideoGravityResizeAspect];
-            }
-            for (CALayer *sub in playerView.layer.sublayers) {
-                if ([sub respondsToSelector:@selector(setVideoGravity:)]) {
-                    [(id)sub setVideoGravity:AVLayerVideoGravityResizeAspect];
-                }
-            }
-        }
+        DKApplyMode2AspectFit(playerView);
     }
 }
 

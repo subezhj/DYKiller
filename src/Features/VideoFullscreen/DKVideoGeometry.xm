@@ -124,7 +124,6 @@ static Class DKPlayInteractionClass(void) {
 // 它们只需保持容器自然满幅，背景延伸到底栏交给 DKVideoPageChrome.xm 的 DKSyncBackdrop。
 static BOOL DKMergeCanCoverScreen(AWEDPlayerViewController_Merge *merge) {
     if (![merge isKindOfClass:DKMergeClass()]) return NO;
-    if (DKVideoFullscreenModeValue() == 2) return NO;
 
     AWEAwemeModel *model = merge.model;
     if (model.awemeType == kDKAwemeTypeImage) return NO;
