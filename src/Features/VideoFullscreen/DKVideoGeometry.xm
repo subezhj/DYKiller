@@ -82,7 +82,7 @@ BOOL DKIsSearchDetailView(UIView *view) {
 }
 
 BOOL DKVideoGeometryOn(void) {
-    return DKVideoFullscreenOn() && !DKVideoGeometryOwnedByDYYY();
+    return DKVideoFullscreenOn();
 }
 
 BOOL DKCommentFreezeOn(void) {

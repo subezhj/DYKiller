@@ -558,7 +558,6 @@ static BOOL DKIsAuthorDescriptionStack(UIView *view) {
 }
 
 static void DKSyncSearchDetailChrome(UIViewController *interaction) {
-    if (DKVideoGeometryOwnedByDYYY()) return;
     UIView *hud = interaction.viewIfLoaded;
     Class stackClass = NSClassFromString(@"AWEElementStackView");
     if (!hud || !stackClass) return;
