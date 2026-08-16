@@ -163,6 +163,46 @@ static BOOL DKIsProgressRelatedView(UIView *sub) {
 
 %end
 
+%hook AWEFeedProgressSlider
+
+- (void)setAlpha:(CGFloat)alpha {
+    if (DKPrefBool(DKKeyKeepProgressInCleanMode) && alpha < 0.1) {
+        %orig(1.0);
+        return;
+    }
+    %orig(alpha);
+}
+
+- (void)setHidden:(BOOL)hidden {
+    if (DKPrefBool(DKKeyKeepProgressInCleanMode) && hidden) {
+        %orig(NO);
+        return;
+    }
+    %orig(hidden);
+}
+
+%end
+
+%hook AWEDPlayerProgressContainerView
+
+- (void)setAlpha:(CGFloat)alpha {
+    if (DKPrefBool(DKKeyKeepProgressInCleanMode) && alpha < 0.1) {
+        %orig(1.0);
+        return;
+    }
+    %orig(alpha);
+}
+
+- (void)setHidden:(BOOL)hidden {
+    if (DKPrefBool(DKKeyKeepProgressInCleanMode) && hidden) {
+        %orig(NO);
+        return;
+    }
+    %orig(hidden);
+}
+
+%end
+
 %ctor {
     DKSettingsRegisterItem(@"视频全屏", ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyFluidGesturesEnabled, @"非侵入式流体手势", @"两指捏合任意位置切清屏，两指轻击循环切倍速（0 悬浮图标）");
