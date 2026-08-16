@@ -89,6 +89,18 @@ static void DKShowToastHUD(UIView *parentView, NSString *message) {
     }
 }
 
+static BOOL DKIsProgressRelatedView(UIView *sub) {
+    if (!sub) return NO;
+    NSString *cls = NSStringFromClass(sub.class);
+    if ([cls containsString:@"Progress"] ||
+        [cls containsString:@"Slider"] ||
+        [cls containsString:@"Underline"] ||
+        [cls containsString:@"Seek"]) {
+        return YES;
+    }
+    return NO;
+}
+
 %new
 - (void)dk_handleFluidPinch:(UIPinchGestureRecognizer *)pinch {
     if (pinch.state == UIGestureRecognizerStateEnded) {
@@ -103,13 +115,28 @@ static void DKShowToastHUD(UIView *parentView, NSString *message) {
 
         BOOL isClean = [objc_getAssociatedObject(hudView, &kDKCleanScreenActiveKey) boolValue];
         BOOL targetClean = !isClean;
+        BOOL keepProgress = DKPrefBool(DKKeyKeepProgressInCleanMode);
 
         [UIView animateWithDuration:0.25 animations:^{
-            hudView.alpha = targetClean ? 0.0 : 1.0;
+            if (targetClean && keepProgress) {
+                for (UIView *sub in hudView.subviews) {
+                    if (DKIsProgressRelatedView(sub)) {
+                        sub.alpha = 1.0;
+                        sub.hidden = NO;
+                    } else {
+                        sub.alpha = 0.0;
+                    }
+                }
+            } else {
+                for (UIView *sub in hudView.subviews) {
+                    sub.alpha = targetClean ? 0.0 : 1.0;
+                }
+                hudView.alpha = targetClean ? 0.0 : 1.0;
+            }
         }];
 
         objc_setAssociatedObject(hudView, &kDKCleanScreenActiveKey, @(targetClean), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        DKShowToastHUD(self.view, targetClean ? @"✨ 纯净清屏模式" : @"📺 恢复界面浮层");
+        DKShowToastHUD(self.view, (targetClean && keepProgress) ? @"✨ 纯净清屏 (保留进度条)" : (targetClean ? @"✨ 纯净清屏模式" : @"📺 恢复界面浮层"));
     }
 }
 

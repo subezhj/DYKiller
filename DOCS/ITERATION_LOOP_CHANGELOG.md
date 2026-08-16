@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta84`** | 用户在两指捏合切清屏/放大视频时，希望能保留完整/可拖拽的底层视频进度条 | **清屏模式保留进度条系统** (`DKKeyKeepProgressInCleanMode`)：在 `dk_handleFluidPinch` 中精准过滤并保留 `AWEDPlayerProgressContainerView` / `AWEFeedProgressSlider` 透明度为 1.0 且可交互 | `DKFluidGestures.xm`<br>`DKVideoGeometry.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta83`** | 推荐页卡片显示“距离你 xx km”本地商业广告壳；验证 `1786887418` 性能降低至 844MB RAM | 挂钩 `AWEAwemeModel` 的 `isAd` / `isCommerce` / `adLinkType` 及 `AWEFeedCellViewController` 的 `setModel:` 彻底阻断本地广告卡片 | `DKJunkResourceBlocker.xm`<br>`DouyinHeaders.h`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta82`** | CI 编译阶段 `DKVideoPageChrome.xm` 中 `AWEPlayInteractionViewController` 重复声明 Hook 方法冲突报错 | 合并 `viewDidLayoutSubviews` Hook 方法块，彻底解除 Logos 符号生成重复冲突 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta81`** | CI 编译阶段重定义接口类与 `DouyinHeaders.h` 冲突报错 | 统一收拢营销与挂件类定义至 `DouyinHeaders.h`，彻底解除 Clang 接口重定义错误 | `DouyinHeaders.h`<br>`DKJunkResourceBlocker.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |

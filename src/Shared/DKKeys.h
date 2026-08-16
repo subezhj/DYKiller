@@ -33,6 +33,8 @@ static NSString *const DKKeyFluidGesturesEnabled = @"DYKillerFluidGesturesEnable
 static NSString *const DKKeyForceNativeAVPlayer = @"DYKillerForceNativeAVPlayer";
 // 极简控件模式：隐去播放界面冗余挂件与无用浮层，提升视觉清爽度与渲染性能。
 static NSString *const DKKeyZenFeedUIEnabled = @"DYKillerZenFeedUIEnabled";
+// 清屏与放大模式保留视频进度条：捏合切清屏时保留底部完整/可拖拽进度条。
+static NSString *const DKKeyKeepProgressInCleanMode = @"DYKillerKeepProgressInCleanMode";
 
 #pragma mark - 功能组：评论区
 
