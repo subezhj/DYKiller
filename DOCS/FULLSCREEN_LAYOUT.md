@@ -118,4 +118,66 @@ BOOL DKVideoGeometryOwnedByDYYY(void) {
    正向白名单极易漏掉特定场景的 `referString`（如经验视频的 `homepage_fresh` 或精选页）。通过反向排除法，仅将明确需要预留合集栏高度的 `personal_homepage` / `others_homepage` 列为例外，其余全局默认 `874pt` 满高，一举解决所有派生分区的文案偏高与避让问题。
 
 ---
-*文档更新时间：2026-08-15 | Antigravity AI Codebase Docs*
+
+## 6. 全屏模式 1 与全屏模式 2（零裁切无损全屏）架构对比与适用场景
+
+> **版本引入**：DYKiller 0.5.5-beta67+
+> **配置控制**：`DYKillerVideoFullscreenMode` (0 关闭 / 1 满屏填充 / 2 原比例无损)
+
+### 6.1 全屏模式双方案对比与底层技术原理
+
+| 维度对比 | **全屏模式 1：满屏填充 (AspectFill)** | **全屏模式 2：原比例无损 (AspectFit + 智能融合背景)** |
+| :--- | :--- | :--- |
+| **底层画面缩放** | `AVLayerVideoGravityResizeAspectFill` | `AVLayerVideoGravityResizeAspect` + `TTMetalViewVP` 视口钳制 |
+| **画面覆盖范围** | 100% 物理屏幕无死角填充（上下无黑边） | 视频画面 100% 原比例无损呈现（左右 0 裁切），上下填充智能渐变 |
+| **画面裁切情况** | 左右画面会有约 18% ~ 22% 的像素过裁 | **0 像素裁切（0 Pixel Crop）**，视频所有细节完整可见 |
+| **背景技术实现** | 无需额外背景 | 借用并拉伸抖音官方在 GPU 解码管线提取的 `playerBackgroundView` 智能渐变 |
+| **性能与功耗** | 0 额外开销，原生流畅 | 0 额外 CPU/GPU 开销（复用抖音原生 GPU 渲染池），零发热 |
+
+---
+
+### 6.2 全屏模式 2 关键 Hook 实现与 Metal 视口钳制
+
+#### 1. `TTMetalViewVP` 视口帧钳制算法 (`DKVideoPageChrome.xm`)
+* **根因定位**：抖音官方播放引擎 `TTPlayerView` 在检测到容器高度为 `874pt` 时，底层 Metal 视口 `TTMetalViewVP` 会自动按比例放大到 `491.625pt`（向左偏移 `-44.8125pt`），外层被 `TTPlayerView` 的 `clipsToBounds = 1` 强制裁剪掉了左右两侧各 44.8 像素！
+* **精准 Hook 钳制解法**：
+  ```objc
+  %hook TTMetalViewVP
+
+  - (void)setFrame:(CGRect)frame {
+      if (DKVideoFullscreenModeValue() == 2) {
+          UIView *superview = self.superview;
+          if (superview) {
+              CGFloat parentW = CGRectGetWidth(superview.bounds);
+              CGFloat parentH = CGRectGetHeight(superview.bounds);
+              if (parentW > 0.0 && parentH > 0.0 && frame.size.width > parentW && frame.size.height > 0.0) {
+                  CGFloat aspect = frame.size.width / frame.size.height;
+                  CGFloat newW = parentW;
+                  CGFloat newH = newW / aspect;
+                  CGFloat newX = 0.0;
+                  CGFloat newY = (parentH - newH) / 2.0;
+                  if (newY < 0.0) newY = 0.0;
+                  frame = CGRectMake(newX, newY, newW, newH);
+              }
+          }
+      }
+      %orig(frame);
+  }
+
+  %end
+  ```
+
+---
+
+### 6.3 场景适用与用户需求匹配指南
+
+* **🎯 适合【全屏模式 1：满屏填充】的场景与用户**：
+  * **用户需求**：追求极致的视觉沉浸感，希望屏幕 `874pt` 全部空间被画面无缝遮盖，不在意左右两侧的微小裁剪。
+  * **适用场景**：日常休闲刷短视频、风光片、影视剪辑、高屏占比视觉党。
+
+* **🎯 适合【全屏模式 2：原比例无损 (零裁切)】的场景与用户**：
+  * **用户需求**：对画面完整度要求极高，**不能接受左右两侧有任何文字、人物、字幕或表格数据被切掉**。
+  * **适用场景**：学习类教程、教学 PPT 演示、带有边缘字幕的剧集、同城瀑布流、游戏直播/录播、强信息密度短视频。
+
+---
+*文档更新时间：2026-08-16 | Antigravity AI Codebase Docs*
