@@ -29,6 +29,8 @@ static NSString *const DKKeyMetalSharpeningEnabled = @"DYKillerMetalSharpeningEn
 static NSString *const DKKeyMetalVibrantColorEnabled = @"DYKillerMetalVibrantColorEnabled";
 // 开启非侵入式流体手势（双指捏合切清屏 / 双指轻击切倍速，0 悬浮图标）
 static NSString *const DKKeyFluidGesturesEnabled = @"DYKillerFluidGesturesEnabled";
+// 开启 iOS 原生 AVPlayer 硬件解码引擎（实验性：极低功耗与内存，原生锁屏/画中画融合）
+static NSString *const DKKeyForceNativeAVPlayer = @"DYKillerForceNativeAVPlayer";
 
 #pragma mark - 功能组：评论区
 

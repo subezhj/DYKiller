@@ -351,6 +351,27 @@ static void DKApplyMode2AspectFit(UIView *playerView) {
 
 %hook AWEPlayVideoViewController
 
+- (NSUInteger)playerType {
+    if (DKPrefBool(DKKeyForceNativeAVPlayer)) {
+        return 1;
+    }
+    return %orig;
+}
+
+- (BOOL)useAVPlayer {
+    if (DKPrefBool(DKKeyForceNativeAVPlayer)) {
+        return YES;
+    }
+    return %orig;
+}
+
+- (void)setUseAVPlayer:(BOOL)use {
+    if (DKPrefBool(DKKeyForceNativeAVPlayer)) {
+        use = YES;
+    }
+    %orig(use);
+}
+
 - (void)setPlayerBackgroundView:(UIView *)backgroundView {
     %orig;
     if (DKIsUnderRichContent(self)) return;
