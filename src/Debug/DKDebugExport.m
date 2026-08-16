@@ -15,6 +15,7 @@
 #import "DKClassDump.h"
 #import "DKKeys.h"
 #import "DKZipWriter.h"
+#import "DKHookLogger.h"
 
 NSString *const DKDebugExportWorkingDirectoryKey = @"DKDebugExportWorkingDirectory";
 
@@ -207,13 +208,18 @@ static void DKWritePageClasses(DKExportSink *sink, NSArray<NSString *> *classNam
 static void DKWritePageFiles(DKExportSink *sink,
                              DKDebugExportContext *context,
                              void (^progress)(NSString *text)) {
-    if (progress) progress(@"写入页面结构...");
+    if (progress) progress(@"写入页面结构与诊断日志...");
     DKWriteJSON(sink, @"page/windows.json", context.windowsJSON ?: @[], NO);
     DKWriteString(sink, @"page/view-tree.txt", context.viewTreeText, NO);
     DKWriteJSON(sink, @"page/view-tree.json", context.viewTreeJSON ?: @[], NO);
     DKWriteJSON(sink, @"page/selected-view.json", context.selectedViewJSON ?: @{}, NO);
     DKWriteString(sink, @"page/view-controllers.txt", context.viewControllersText, NO);
     DKWriteJSON(sink, @"page/layers.json", context.layersJSON ?: @[], NO);
+
+    // 自动落盘 Hook 诊断日志与 CPU/内存/功耗性能评估报告
+    DKWriteString(sink, @"probe/hook_events.txt", DKGetHookLogsText() ?: @"", NO);
+    DKWriteString(sink, @"probe/performance.txt", DKGetPerformanceMetricsReport() ?: @"", NO);
+
     if (progress) progress(@"导出本页类头文件...");
     DKWritePageClasses(sink, context.pageClassNames ?: @[]);
 }

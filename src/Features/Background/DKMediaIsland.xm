@@ -9,6 +9,7 @@
 #import "DKKeys.h"
 #import "DKSettings.h"
 #import "DKUtils.h"
+#import "DKHookLogger.h"
 #import <Foundation/Foundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <AVFoundation/AVFoundation.h>
@@ -60,6 +61,7 @@ static void DKUpdateMediaIslandState(void) {
         }
 
         [defaultCenter setNowPlayingInfo:info];
+        DKLogHookEvent(@"MediaIsland", @"setNowPlayingInfo", [NSString stringWithFormat:@"BundleID=%@", currentBundleID]);
     });
 }
 

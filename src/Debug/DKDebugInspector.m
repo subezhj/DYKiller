@@ -272,7 +272,7 @@ static void DKEnsureDebugWindow(void) {
     if (!self.didPlaceButton) {
         UIEdgeInsets insets = self.view.safeAreaInsets;
         CGFloat x = self.view.bounds.size.width - insets.right - 12.0 - 24.0;
-        CGFloat y = insets.top + 12.0 + 24.0;
+        CGFloat y = insets.top + 140.0;
         self.wrenchButton.center = CGPointMake(x, y);
         self.didPlaceButton = YES;
     }
