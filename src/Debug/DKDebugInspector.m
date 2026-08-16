@@ -254,6 +254,16 @@ static void DKEnsureDebugWindow(void) {
     self.wrenchButton.layer.shadowOffset = CGSizeMake(0, 2);
     self.wrenchButton.accessibilityLabel = @"DYKiller Debug";
 
+    [self.wrenchButton addTarget:self action:@selector(handleWrenchTap) forControlEvents:UIControlEventTouchUpInside];
+    UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleWrenchLongPress:)];
+    longPress.minimumPressDuration = 0.8;
+    [self.wrenchButton addGestureRecognizer:longPress];
+
+    [self.view addSubview:self.wrenchButton];
+
+    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleWrenchPan:)];
+    [self.wrenchButton addGestureRecognizer:pan];
+
     UIImage *image = nil;
     if ([UIImage respondsToSelector:@selector(systemImageNamed:)]) image = [UIImage systemImageNamed:@"wrench.fill"];
     if (image) {
@@ -262,11 +272,6 @@ static void DKEnsureDebugWindow(void) {
         [self.wrenchButton setTitle:@"W" forState:UIControlStateNormal];
         self.wrenchButton.titleLabel.font = [UIFont boldSystemFontOfSize:20];
     }
-    [self.wrenchButton addTarget:self action:@selector(showDebugMenu) forControlEvents:UIControlEventTouchUpInside];
-    [self.view addSubview:self.wrenchButton];
-
-    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleWrenchPan:)];
-    [self.wrenchButton addGestureRecognizer:pan];
 
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleOrientationOrWindowChange:)
@@ -328,6 +333,92 @@ static void DKEnsureDebugWindow(void) {
     [self clampWrenchButton];
 }
 
+static NSMutableArray<DKDebugExportContext *> *gDKStepSnapshots = nil;
+
+- (void)updateWrenchAppearance {
+    BOOL capturing = DKIsLogCapturing();
+    if (capturing) {
+        self.wrenchButton.backgroundColor = [UIColor colorWithRed:0.95 green:0.25 blue:0.25 alpha:0.95];
+        self.wrenchButton.layer.borderWidth = 2.0;
+        self.wrenchButton.layer.borderColor = [UIColor whiteColor].CGColor;
+    } else {
+        self.wrenchButton.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.82];
+        self.wrenchButton.layer.borderWidth = 0.0;
+    }
+}
+
+- (void)handleWrenchTap {
+    if (DKIsLogCapturing()) {
+        // 录制模式下，单击直接秒抓当前页快照
+        DKDebugExportContext *stepCtx = DKDebugCaptureContext(self);
+        if (stepCtx) {
+            if (!gDKStepSnapshots) gDKStepSnapshots = [NSMutableArray array];
+            stepCtx.stepIndex = gDKStepSnapshots.count + 1;
+            [gDKStepSnapshots addObject:stepCtx];
+
+            if (@available(iOS 10.0, *)) {
+                UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
+                [feedback impactOccurred];
+            }
+
+            [UIView animateWithDuration:0.12 animations:^{
+                self.wrenchButton.transform = CGAffineTransformMakeScale(1.25, 1.25);
+            } completion:^(BOOL finished) {
+                [UIView animateWithDuration:0.12 animations:^{
+                    self.wrenchButton.transform = CGAffineTransformIdentity;
+                }];
+            }];
+
+            NSString *msg = [NSString stringWithFormat:@"📸 已捕抓第 %ld 页快照 (含图层/视图树/截图)", (long)gDKStepSnapshots.count];
+            UIAlertController *toast = [UIAlertController alertControllerWithTitle:@"📸 快照保存成功"
+                                                                           message:msg
+                                                                    preferredStyle:UIAlertControllerStyleAlert];
+            [self presentViewController:toast animated:YES completion:^{
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [toast dismissViewControllerAnimated:YES completion:nil];
+                });
+            }];
+        }
+        [self updateWrenchAppearance];
+    } else {
+        // 未开启录制时，单击弹出调试功能菜单
+        [self showDebugMenu];
+    }
+}
+
+- (void)handleWrenchLongPress:(UILongPressGestureRecognizer *)longPress {
+    if (longPress.state == UIGestureRecognizerStateBegan) {
+        if (DKIsLogCapturing()) {
+            // 录制模式下，长按直接结束录制并打包导出 ZIP
+            if (@available(iOS 10.0, *)) {
+                UINotificationFeedbackGenerator *feedback = [[UINotificationFeedbackGenerator alloc] init];
+                [feedback notificationOccurred:UINotificationFeedbackTypeSuccess];
+            }
+
+            DKStopLogCapture();
+            [self updateWrenchAppearance];
+
+            DKDebugExportContext *context = DKDebugCaptureContext(self);
+            if (context) {
+                context.stepContexts = [gDKStepSnapshots copy];
+            }
+            gDKStepSnapshots = nil;
+            DKStartExport(context, DKDebugExportModePage);
+        } else {
+            // 未开启录制时，长按直接快捷开启多页录制
+            DKStartLogCapture();
+            gDKStepSnapshots = [NSMutableArray array];
+            [self updateWrenchAppearance];
+
+            UIAlertController *toast = [UIAlertController alertControllerWithTitle:@"🔴 多页调试录制已开启"
+                                                                           message:@"小钥匙已变成红色高亮！\n• 单击小钥匙：秒抓当前页快照数据\n• 长按小钥匙 (0.8s)：停止录制并打包导出 ZIP"
+                                                                    preferredStyle:UIAlertControllerStyleAlert];
+            [toast addAction:[UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleDefault handler:nil]];
+            [self presentViewController:toast animated:YES completion:nil];
+        }
+    }
+}
+
 BOOL DKToggleFLEXExplorer(void) {
     Class flexManagerClass = NSClassFromString(@"FLEXManager");
     if (!flexManagerClass) {
@@ -366,14 +457,6 @@ BOOL DKToggleFLEXExplorer(void) {
     return NO;
 }
 
-- (void)updateWrenchAppearance {
-    if (DKIsLogCapturing()) {
-        self.wrenchButton.backgroundColor = [UIColor colorWithRed:0.85 green:0.22 blue:0.22 alpha:0.92];
-    } else {
-        self.wrenchButton.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.82];
-    }
-}
-
 - (void)showDebugMenu {
     if (!DKPrefBool(DKKeyDebugInspectorEnabled)) return;
 
@@ -383,39 +466,59 @@ BOOL DKToggleFLEXExplorer(void) {
     NSString *netLoggerTitle = netLoggerOn ? @"API抓包日志：已开启 (点击关闭)" : @"API抓包日志：已关闭 (点击开启)";
 
     BOOL capturing = DKIsLogCapturing();
-    NSString *captureTitle = capturing ? @"⏹️ 停止抓取并打包导出 ZIP (录制中...)" : @"▶️ 开启调试数据抓取 (刷几页后停止)";
+    NSString *alertMessage = capturing ? [NSString stringWithFormat:@"🔴 正在录制调试数据... (已采 %ld 页快照)\n提示：按住小钥匙 0.8s 可直接导出 ZIP", (long)gDKStepSnapshots.count] : @"提示：开启录制后，单击小钥匙即可秒抓快照，长按 0.8s 导出！";
 
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"DYKiller Debug"
-                                                                   message:capturing ? @"🔴 正在录制调试数据中..." : nil
+                                                                   message:alertMessage
                                                             preferredStyle:UIAlertControllerStyleActionSheet];
-    [alert addAction:[UIAlertAction actionWithTitle:captureTitle
-                                              style:capturing ? UIAlertActionStyleDestructive : UIAlertActionStyleDefault
-                                            handler:^(__unused UIAlertAction *action) {
-        if (capturing) {
+
+    if (capturing) {
+        NSString *snapTitle = [NSString stringWithFormat:@"📸 捕抓当前页快照数据 (第 %ld 页)", (long)gDKStepSnapshots.count + 1];
+        [alert addAction:[UIAlertAction actionWithTitle:snapTitle
+                                                  style:UIAlertActionStyleDefault
+                                                handler:^(__unused UIAlertAction *action) {
+            [self handleWrenchTap];
+        }]];
+
+        [alert addAction:[UIAlertAction actionWithTitle:@"⏹️ 停止抓取并打包导出 ZIP (或长按小钥匙)"
+                                                  style:UIAlertActionStyleDestructive
+                                                handler:^(__unused UIAlertAction *action) {
             DKStopLogCapture();
             [self updateWrenchAppearance];
-            [self exportWholePage];
-        } else {
+            DKDebugExportContext *context = DKDebugCaptureContext(self);
+            if (context) {
+                context.stepContexts = [gDKStepSnapshots copy];
+            }
+            gDKStepSnapshots = nil;
+            DKStartExport(context, DKDebugExportModePage);
+        }]];
+    } else {
+        [alert addAction:[UIAlertAction actionWithTitle:@"▶️ 开启调试数据抓取 (多页快照录制)"
+                                                  style:UIAlertActionStyleDefault
+                                                handler:^(__unused UIAlertAction *action) {
             DKStartLogCapture();
+            gDKStepSnapshots = [NSMutableArray array];
             [self updateWrenchAppearance];
-            UIAlertController *toast = [UIAlertController alertControllerWithTitle:@"▶️ 调试抓取已开启"
-                                                                           message:@"现已开始记录 Hook 与网络/性能数据。\n请任意刷几个视频或执行操作，完成后再次点击小钥匙选【停止并导出】即可！"
+            UIAlertController *toast = [UIAlertController alertControllerWithTitle:@"🔴 调试录制已开启 (钥匙变红)"
+                                                                           message:@"现已进入多页录制模式！\n1. 刷到要调试的视频，单击小钥匙秒抓快照\n2. 刷几个视频抓完后，长按小钥匙 0.8s 打包导出！"
                                                                     preferredStyle:UIAlertControllerStyleAlert];
             [toast addAction:[UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleDefault handler:nil]];
             [self presentViewController:toast animated:YES completion:nil];
-        }
-    }]];
+        }]];
+
+        [alert addAction:[UIAlertAction actionWithTitle:@"⚡ 导出本页 zip"
+                                                  style:UIAlertActionStyleDefault
+                                                handler:^(__unused UIAlertAction *action) {
+            [self exportWholePage];
+        }]];
+    }
+
     [alert addAction:[UIAlertAction actionWithTitle:@"打开 FLEX++ 调试工具"
                                               style:UIAlertActionStyleDefault
                                             handler:^(__unused UIAlertAction *action) {
         if (!DKToggleFLEXExplorer()) {
             DKPresentError(self, @"未检测到 FLEX++.dylib！\n请确认在打包或签名 IPA 时已注入 FLEX++ 动态库。");
         }
-    }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"导出本页 zip"
-                                              style:UIAlertActionStyleDefault
-                                            handler:^(__unused UIAlertAction *action) {
-        [self exportWholePage];
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"导出音频专项 zip"
                                               style:UIAlertActionStyleDefault
