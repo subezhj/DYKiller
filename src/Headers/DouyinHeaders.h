@@ -313,4 +313,10 @@
 @property (nonatomic, strong) UILabel *titleLabel;
 @end
 
+@interface AWEUserHomeVisitorButton : UIView
+@end
+
+@interface AWEUserHomeVisitorButtonAccessView : UIView
+@end
+
 #endif /* DouyinHeaders_h */
