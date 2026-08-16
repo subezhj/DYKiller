@@ -170,9 +170,6 @@
 
 
 
-@interface AWEFeedProgressSlider : UIView @end
-@interface AWEDPlayerProgressContainerView : UIView @end
-
 #pragma mark - 评论区功能组用到的类
 
 @interface AWECommentContainerViewController : UIViewController
