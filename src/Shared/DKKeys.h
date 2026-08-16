@@ -76,6 +76,13 @@ static NSString *const DKKeyTransparentMixBar    = @"DYKillerTransparentMixBar";
 #pragma mark - 功能组：个人主页
 
 static NSString *const DKKeyProfileHideUGCGuide = @"DYKillerHideProfileUGCGuide";
+// 隐藏个人主页顶部的“新访客”提示卡片与入口
+static NSString *const DKKeyProfileHideVisitorGuide = @"DYKillerHideProfileVisitorGuide";
+
+#pragma mark - 功能组：可读性
+
+// 可读性增强目标：0 仅视频描述文案 / 1 仅作者用户名 / 2 全量增强（视频文案 + 作者用户名）
+static NSString *const DKKeyReadabilityTarget = @"DYKillerReadabilityTarget";
 
 #pragma mark - 功能组：搜索
 

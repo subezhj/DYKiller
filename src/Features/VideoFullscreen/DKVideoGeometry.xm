@@ -254,12 +254,22 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
         return item;
     });
     DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+        if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyReadabilityTarget]) {
+            [NSUserDefaults.standardUserDefaults setInteger:2 forKey:DKKeyReadabilityTarget];
+        }
+        return DKMakeChoice(
+            DKKeyReadabilityTarget,
+            @"可读性增强对象",
+            @[ @"仅视频描述文案", @"仅作者用户名(@)", @"全量增强(文案+用户名)" ]
+        );
+    });
+    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
         if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoCaptionContrast]) {
             [NSUserDefaults.standardUserDefaults setInteger:2 forKey:DKKeyVideoCaptionContrast];
         }
         return DKMakeChoice(
             DKKeyVideoCaptionContrast,
-            @"视频文案可读性",
+            @"文字对比度强度",
             @[ @"关闭", @"轻", @"标准", @"强" ]
         );
     });

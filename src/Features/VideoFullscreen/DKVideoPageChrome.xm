@@ -711,6 +711,12 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
 %end
 
 
+static NSInteger DKReadabilityTarget(void) {
+    NSNumber *stored = [NSUserDefaults.standardUserDefaults objectForKey:DKKeyReadabilityTarget];
+    NSInteger target = stored ? stored.integerValue : 2;
+    return MAX(0, MIN(target, 2));
+}
+
 static NSInteger DKCaptionContrastLevel(void) {
     NSNumber *stored = [NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoCaptionContrast];
     NSInteger level = stored ? stored.integerValue : 2;
@@ -749,7 +755,34 @@ static void DKSyncCaptionShadow(UIView *caption) {
 
 - (void)layoutSubviews {
     %orig;
-    DKSyncCaptionShadow(self);
+    NSInteger target = DKReadabilityTarget();
+    if (target == 0 || target == 2) {
+        DKSyncCaptionShadow(self);
+    }
+}
+
+%end
+
+%hook AWEPlayInteractionUserNameLabel
+
+- (void)layoutSubviews {
+    %orig;
+    NSInteger target = DKReadabilityTarget();
+    if (target == 1 || target == 2) {
+        DKSyncCaptionShadow(self);
+    }
+}
+
+%end
+
+%hook AWEAwemeAuthorContainerView
+
+- (void)layoutSubviews {
+    %orig;
+    NSInteger target = DKReadabilityTarget();
+    if (target == 1 || target == 2) {
+        DKSyncCaptionShadow(self);
+    }
 }
 
 %end

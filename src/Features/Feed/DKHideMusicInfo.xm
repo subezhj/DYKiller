@@ -29,7 +29,9 @@ static BOOL DKIsMusicButtonText(NSString *text) {
     return [text isEqualToString:@"听抖音"]
         || [text isEqualToString:@"拍同款"]
         || [text isEqualToString:@"玩同款"]
-        || [text isEqualToString:@"听完整版"];
+        || [text isEqualToString:@"听完整版"]
+        || [text isEqualToString:@"听合集"]
+        || [text containsString:@"听合集"];
 }
 
 static void DKSyncMusicButtonText(UILabel *label) {
