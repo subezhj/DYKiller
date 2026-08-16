@@ -265,6 +265,15 @@
 @interface _TtC21AWEIncentiveSwiftImpl29IncentivePendantContainerView : UIView
 @end
 
+@interface AWECommerceAnchorView : UIView
+@end
+
+@interface AWECommercePendantView : UIView
+@end
+
+@interface AWEAwemePlayletWaterMarkView : UIView
+@end
+
 #pragma mark - 个人主页功能组用到的类
 
 

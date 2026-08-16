@@ -14,12 +14,6 @@
 + (instancetype)sharedInstance;
 @end
 
-@interface AWELuckyCatBannerView : UIView @end
-@interface AWECommerceAnchorView : UIView @end
-@interface AWECommercePendantView : UIView @end
-@interface AWEAwemePlayletWaterMarkView : UIView @end
-@interface _TtC21AWEIncentiveSwiftImpl29IncentivePendantContainerView : UIView @end
-
 static BOOL DKIsJunkURL(NSString *urlString) {
     if (!urlString || urlString.length == 0) return NO;
     static NSArray<NSString *> *junkPatterns;
