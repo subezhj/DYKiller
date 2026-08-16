@@ -13,10 +13,33 @@
 #import <MediaPlayer/MediaPlayer.h>
 #import <AVFoundation/AVFoundation.h>
 
+static void DKSetupRemoteCommandsIfNeeded(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        MPRemoteCommandCenter *commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+        [commandCenter.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+        [commandCenter.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+        [commandCenter.togglePlayPauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+    });
+}
+
 static void DKUpdateMediaIslandState(void) {
     if (!DKPrefBool(DKKeyMediaIslandEnabled)) return;
 
     dispatch_async(dispatch_get_main_queue(), ^{
+        NSError *error = nil;
+        AVAudioSession *session = [AVAudioSession sharedInstance];
+        [session setCategory:AVAudioSessionCategoryPlayback withOptions:AVAudioSessionCategoryOptionMixWithOthers error:&error];
+        [session setActive:YES error:&error];
+
+        DKSetupRemoteCommandsIfNeeded();
+
         Class infoCenterClass = NSClassFromString(@"MPNowPlayingInfoCenter");
         if (!infoCenterClass) return;
 
@@ -27,7 +50,7 @@ static void DKUpdateMediaIslandState(void) {
         info[MPMediaItemPropertyTitle] = @"抖音 · 点击返回前台";
         info[MPMediaItemPropertyArtist] = @"DYKiller 灵动岛直达";
         info[MPNowPlayingInfoPropertyPlaybackRate] = @1.0;
-        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @0.0;
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @1.0;
         info[MPMediaItemPropertyPlaybackDuration] = @100.0;
 
         [defaultCenter setNowPlayingInfo:info];
@@ -39,6 +62,13 @@ static void DKUpdateMediaIslandState(void) {
 %hook UIApplication
 
 - (void)applicationDidEnterBackground:(UIApplication *)application {
+    %orig;
+    if (DKPrefBool(DKKeyMediaIslandEnabled)) {
+        DKUpdateMediaIslandState();
+    }
+}
+
+- (void)applicationWillResignActive:(UIApplication *)application {
     %orig;
     if (DKPrefBool(DKKeyMediaIslandEnabled)) {
         DKUpdateMediaIslandState();
