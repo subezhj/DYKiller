@@ -27,6 +27,9 @@ AWESettingItemModel *DKMakeSwitch(NSString *key, NSString *title, NSString *deta
 /// options[0] 对应 0。当前选中项显示在 detail 上。
 AWESettingItemModel *DKMakeChoice(NSString *key, NSString *title, NSArray<NSString *> *options);
 
+/// 生成一个点击型设置项（cellType 26：点击触发 block）。
+AWESettingItemModel *DKMakeButton(NSString *title, NSString *detail, void (^onTap)(void));
+
 /// 点击后弹出 0–100 滑条。未写入过时显示 defaultPercent。onChange 可空。
 AWESettingItemModel *DKMakePercentSlider(NSString *key, NSString *title, NSString *message,
                                          NSInteger defaultPercent, void (^onChange)(NSInteger percent));

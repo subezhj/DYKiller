@@ -6,6 +6,7 @@
 //
 
 #import "DKDebugInspector.h"
+#import "DKDebugCapture.h"
 #import "DKAudioProbe.h"
 #import "DKKeys.h"
 #import "DKSettings.h"

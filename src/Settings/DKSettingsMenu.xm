@@ -141,6 +141,22 @@ AWESettingItemModel *DKMakeChoice(NSString *key, NSString *title, NSArray<NSStri
     return item;
 }
 
+#pragma mark - 按钮项工厂
+
+AWESettingItemModel *DKMakeButton(NSString *title, NSString *detail, void (^onTap)(void)) {
+    AWESettingItemModel *item = [[%c(AWESettingItemModel) alloc] init];
+    item.title = title;
+    item.detail = detail ?: @"";
+    item.type = 0;
+    item.cellType = 26;
+    item.colorStyle = 0;
+    item.isEnable = YES;
+    item.cellTappedBlock = ^{
+        if (onTap) onTap();
+    };
+    return item;
+}
+
 #pragma mark - 滑条项工厂
 
 static NSString *DKPercentSliderDetail(NSInteger percent) {
