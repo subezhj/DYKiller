@@ -89,12 +89,14 @@ static NSString *const DKKeyHideSearchRecommend = @"DYKillerHideSearchRecommend"
 // 拦截广告推送、监控埋点、活动挂件及垃圾资源联网请求。
 static NSString *const DKKeyBlockJunkResources = @"DYKillerBlockJunkResources";
 
-#pragma mark - 功能组：灵动岛
+#pragma mark - 功能组：画中画与灵动岛
 
 // 灵动岛媒体直达与后台唤醒：在后台或锁屏时激活系统灵动岛媒体波形，点击直达抖音前台
 static NSString *const DKKeyMediaIslandEnabled = @"DYKillerMediaIslandEnabled";
 // 灵动岛 ActivityKit 实时活动直达：在 iOS 16.1+ 灵动岛展示专属 Live Activity 控件，支持胶囊与展开态快捷秒开
 static NSString *const DKKeyLiveActivityIslandEnabled = @"DYKillerLiveActivityIslandEnabled";
+// 画中画悬浮直达秒开：退后台时开启系统画中画小窗，点击画中画恢复按钮 100% 绝对无条件秒开切回抖音
+static NSString *const DKKeyPiPQuickLaunchEnabled = @"DYKillerPiPQuickLaunchEnabled";
 
 #pragma mark - 功能组：调试工具
 
