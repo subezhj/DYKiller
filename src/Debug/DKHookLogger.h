@@ -14,8 +14,17 @@
 extern "C" {
 #endif
 
-/// 记录一次关键 Hook 执行事件
-void DKLogHookEvent(NSString *feature, NSString *hookName, NSString *details);
+/// 开启调试数据抓取（重置并开始记录此阶段内发生的 Hook 事件与网络/性能数据）
+void DKStartLogCapture(void);
+
+/// 停止调试数据抓取
+void DKStopLogCapture(void);
+
+/// 是否处于调试数据抓取中
+BOOL DKIsLogCapturing(void);
+
+/// 清空已有的 Hook 日志缓冲区
+void DKClearHookLogsBuffer(void);
 
 /// 获取全量 Hook 事件日志文本（用于落盘到 probe/hook_events.txt）
 NSString *DKGetHookLogsText(void);

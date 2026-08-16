@@ -13,6 +13,9 @@
 static NSMutableArray<NSString *> *gHookLogBuffer;
 static dispatch_queue_t gHookLogQueue;
 
+static BOOL gDKIsCapturingLogs = NO;
+static NSDate *gDKCaptureStartTime = nil;
+
 static void DKInitHookLoggerIfNeeded(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -21,9 +24,45 @@ static void DKInitHookLoggerIfNeeded(void) {
     });
 }
 
+void DKStartLogCapture(void) {
+    DKInitHookLoggerIfNeeded();
+    dispatch_async(gHookLogQueue, ^{
+        [gHookLogBuffer removeAllObjects];
+        gDKIsCapturingLogs = YES;
+        gDKCaptureStartTime = [NSDate date];
+        NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+        formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss.SSS";
+        [gHookLogBuffer addObject:[NSString stringWithFormat:@"=== 调试日志抓取已开启 (%@) ===", [formatter stringFromDate:gDKCaptureStartTime]]];
+    });
+}
+
+void DKStopLogCapture(void) {
+    DKInitHookLoggerIfNeeded();
+    dispatch_async(gHookLogQueue, ^{
+        if (!gDKIsCapturingLogs) return;
+        gDKIsCapturingLogs = NO;
+        NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+        formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss.SSS";
+        NSTimeInterval duration = gDKCaptureStartTime ? [[NSDate date] timeIntervalSinceDate:gDKCaptureStartTime] : 0.0;
+        [gHookLogBuffer addObject:[NSString stringWithFormat:@"=== 调试日志抓取已停止 (%@, 累计时长: %.1f 秒) ===", [formatter stringFromDate:[NSDate date]], duration]];
+    });
+}
+
+BOOL DKIsLogCapturing(void) {
+    return gDKIsCapturingLogs;
+}
+
+void DKClearHookLogsBuffer(void) {
+    DKInitHookLoggerIfNeeded();
+    dispatch_async(gHookLogQueue, ^{
+        [gHookLogBuffer removeAllObjects];
+    });
+}
+
 void DKLogHookEvent(NSString *feature, NSString *hookName, NSString *details) {
     DKInitHookLoggerIfNeeded();
     dispatch_async(gHookLogQueue, ^{
+        if (!gDKIsCapturingLogs) return;
         if (gHookLogBuffer.count > 1000) {
             [gHookLogBuffer removeObjectsInRange:NSMakeRange(0, 200)];
         }

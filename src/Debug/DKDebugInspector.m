@@ -11,6 +11,7 @@
 #import "DKUtils.h"
 #import "DKDebugCapture.h"
 #import "DKDebugExport.h"
+#import "DKHookLogger.h"
 #import "DKAudioProbe.h"
 #import "DKAudioRuntime.h"
 #import "DKTabBarProbe.h"
@@ -340,15 +341,45 @@ BOOL DKToggleFLEXExplorer(void) {
     return NO;
 }
 
+- (void)updateWrenchAppearance {
+    if (DKIsLogCapturing()) {
+        self.wrenchButton.backgroundColor = [UIColor colorWithRed:0.85 green:0.22 blue:0.22 alpha:0.92];
+    } else {
+        self.wrenchButton.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.82];
+    }
+}
+
 - (void)showDebugMenu {
     if (!DKPrefBool(DKKeyDebugInspectorEnabled)) return;
+
+    [self updateWrenchAppearance];
 
     BOOL netLoggerOn = DKPrefBool(DKKeyNetworkLoggerEnabled);
     NSString *netLoggerTitle = netLoggerOn ? @"API抓包日志：已开启 (点击关闭)" : @"API抓包日志：已关闭 (点击开启)";
 
+    BOOL capturing = DKIsLogCapturing();
+    NSString *captureTitle = capturing ? @"⏹️ 停止抓取并打包导出 ZIP (录制中...)" : @"▶️ 开启调试数据抓取 (刷几页后停止)";
+
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"DYKiller Debug"
-                                                                   message:nil
+                                                                   message:capturing ? @"🔴 正在录制调试数据中..." : nil
                                                             preferredStyle:UIAlertControllerStyleActionSheet];
+    [alert addAction:[UIAlertAction actionWithTitle:captureTitle
+                                              style:capturing ? UIAlertActionStyleDestructive : UIAlertActionStyleDefault
+                                            handler:^(__unused UIAlertAction *action) {
+        if (capturing) {
+            DKStopLogCapture();
+            [self updateWrenchAppearance];
+            [self exportWholePage];
+        } else {
+            DKStartLogCapture();
+            [self updateWrenchAppearance];
+            UIAlertController *toast = [UIAlertController alertControllerWithTitle:@"▶️ 调试抓取已开启"
+                                                                           message:@"现已开始记录 Hook 与网络/性能数据。\n请任意刷几个视频或执行操作，完成后再次点击小钥匙选【停止并导出】即可！"
+                                                                    preferredStyle:UIAlertControllerStyleAlert];
+            [toast addAction:[UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleDefault handler:nil]];
+            [self presentViewController:toast animated:YES completion:nil];
+        }
+    }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"打开 FLEX++ 调试工具"
                                               style:UIAlertActionStyleDefault
                                             handler:^(__unused UIAlertAction *action) {
@@ -373,7 +404,7 @@ BOOL DKToggleFLEXExplorer(void) {
         [[NSUserDefaults standardUserDefaults] setBool:newStatus forKey:DKKeyNetworkLoggerEnabled];
         [[NSUserDefaults standardUserDefaults] synchronize];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"关闭" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
     if (alert.popoverPresentationController) {
         alert.popoverPresentationController.sourceView = self.wrenchButton;
         alert.popoverPresentationController.sourceRect = self.wrenchButton.bounds;

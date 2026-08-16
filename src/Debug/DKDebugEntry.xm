@@ -7,6 +7,8 @@
 
 #import "DKDebugInspector.h"
 #import "DKDebugCapture.h"
+#import "DKDebugExport.h"
+#import "DKHookLogger.h"
 #import "DKAudioProbe.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
@@ -45,6 +47,36 @@ static AWESettingItemModel *DKMakeDebugSwitch(void) {
 
 %end
 
+static AWESettingItemModel *DKMakeCaptureButtonItem(void) {
+    BOOL capturing = DKIsLogCapturing();
+    NSString *title = capturing ? @"⏹️ 停止抓取并打包导出 ZIP (录制中...)" : @"▶️ 开启调试数据抓取 (阶段性数据抓取)";
+    NSString *detail = capturing ? @"正在录制 Hook 与网络/性能数据，点击立即停止并打包导出" : @"点击开启阶段性抓取，刷几个视频后点击【停止并导出】";
+
+    return DKMakeButton(title, detail, ^{
+        if (DKIsLogCapturing()) {
+            DKStopLogCapture();
+            UIWindow *window = DKDebugTargetWindow();
+            UIViewController *topVC = DKDebugTopPresenter(window);
+            if (topVC) {
+                DKDebugExportContext *context = DKDebugCaptureContext(window, CGPointZero, nil);
+                context.presenter = topVC;
+                DKStartExport(context, DKDebugExportModePage);
+            }
+        } else {
+            DKStartLogCapture();
+            UIWindow *window = DKDebugTargetWindow();
+            UIViewController *topVC = DKDebugTopPresenter(window);
+            if (topVC) {
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"▶️ 调试抓取已开启"
+                                                                               message:@"现已开始记录 Hook 与网络/性能数据。\n请任意刷几个视频或执行操作，完成后返回此处或点击小钥匙选【停止并导出】即可！"
+                                                                        preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleDefault handler:nil]];
+                [topVC presentViewController:alert animated:YES completion:nil];
+            }
+        }
+    });
+}
+
 static AWESettingItemModel *DKMakeFLEXButtonItem(void) {
     return DKMakeButton(@"打开 FLEX++ 调试面板", @"调出/隐藏 FLEX++ 运行时 UI 层级与 API 调试工具栏", ^{
         if (!DKToggleFLEXExplorer()) {
@@ -65,6 +97,9 @@ static AWESettingItemModel *DKMakeFLEXButtonItem(void) {
     DKAudioProbeInstallIfEnabled(YES);
     DKSettingsRegisterItem(@"调试", ^AWESettingItemModel *{
         return DKMakeDebugSwitch();
+    });
+    DKSettingsRegisterItem(@"调试", ^AWESettingItemModel *{
+        return DKMakeCaptureButtonItem();
     });
     DKSettingsRegisterItem(@"调试", ^AWESettingItemModel *{
         return DKMakeFLEXButtonItem();
