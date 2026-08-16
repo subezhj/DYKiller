@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta82`** | CI 编译阶段 `DKVideoPageChrome.xm` 中 `AWEPlayInteractionViewController` 重复声明 Hook 方法冲突报错 | 合并 `viewDidLayoutSubviews` Hook 方法块，彻底解除 Logos 符号生成重复冲突 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta81`** | CI 编译阶段重定义接口类与 `DouyinHeaders.h` 冲突报错 | 统一收拢营销与挂件类定义至 `DouyinHeaders.h`，彻底解除 Clang 接口重定义错误 | `DouyinHeaders.h`<br>`DKJunkResourceBlocker.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta80`** | CI 编译阶段 `DKJunkResourceBlocker.xm` 前向声明缺少 `UIView` 继承定义，导致 Clang 报 `property 'hidden' cannot be found` | 补全 `@interface ViewClass : UIView @end` 定义，彻底解开 Clang 属性编译限制 | `DKJunkResourceBlocker.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta79`** | 落地“极简控件模式”，剥离播放界面冗余无效图标与挂件 | **极简控件模式** (`DKKeyZenFeedUIEnabled`)：隐去暂停半透明图标、短剧引流水印与无用提示，大幅提升画质清爽度 | `DKVideoPageChrome.xm`<br>`DKVideoGeometry.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |

@@ -407,26 +407,6 @@ static void DKApplyMode2AspectFit(UIView *playerView) {
 
 %end
 
-%hook AWEPlayInteractionViewController
-
-- (void)viewDidLayoutSubviews {
-    %orig;
-    if (DKPrefBool(DKKeyZenFeedUIEnabled)) {
-        UIView *view = self.viewIfLoaded;
-        if (view) {
-            for (UIView *sub in view.subviews) {
-                NSString *cls = NSStringFromClass(sub.class);
-                if ([cls isEqualToString:@"AWEAwemePlayletWaterMarkView"] ||
-                    [cls isEqualToString:@"AWELandscapeFeedEntryView"]) {
-                    sub.hidden = YES;
-                }
-            }
-        }
-    }
-}
-
-%end
-
 %hook TTMetalViewVP
 
 - (void)didMoveToWindow {
@@ -923,6 +903,19 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
 
 - (void)viewDidLayoutSubviews {
     %orig;
+    if (DKPrefBool(DKKeyZenFeedUIEnabled)) {
+        UIView *view = self.viewIfLoaded;
+        if (view) {
+            for (UIView *sub in view.subviews) {
+                NSString *cls = NSStringFromClass(sub.class);
+                if ([cls isEqualToString:@"AWEAwemePlayletWaterMarkView"] ||
+                    [cls isEqualToString:@"AWELandscapeFeedEntryView"]) {
+                    sub.hidden = YES;
+                }
+            }
+        }
+    }
+
     if (!DKIsSearchDetailView(self.viewIfLoaded)) {
         DKHUDStatusBarCoverSync(self);
         DKSyncSearchDetailChrome(self);
