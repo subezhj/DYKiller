@@ -93,6 +93,8 @@ static NSString *const DKKeyBlockJunkResources = @"DYKillerBlockJunkResources";
 
 // 灵动岛媒体直达与后台唤醒：在后台或锁屏时激活系统灵动岛媒体波形，点击直达抖音前台
 static NSString *const DKKeyMediaIslandEnabled = @"DYKillerMediaIslandEnabled";
+// 灵动岛 ActivityKit 实时活动直达：在 iOS 16.1+ 灵动岛展示专属 Live Activity 控件，支持胶囊与展开态快捷秒开
+static NSString *const DKKeyLiveActivityIslandEnabled = @"DYKillerLiveActivityIslandEnabled";
 
 #pragma mark - 功能组：调试工具
 
