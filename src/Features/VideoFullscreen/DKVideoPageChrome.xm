@@ -270,6 +270,30 @@ static void DKApplyMode2AspectFit(UIView *playerView) {
 
 %end
 
+%hook TTMetalViewVP
+
+- (void)setFrame:(CGRect)frame {
+    if (DKVideoFullscreenModeValue() == 2) {
+        UIView *superview = self.superview;
+        if (superview) {
+            CGFloat parentW = CGRectGetWidth(superview.bounds);
+            CGFloat parentH = CGRectGetHeight(superview.bounds);
+            if (parentW > 0.0 && parentH > 0.0 && frame.size.width > parentW && frame.size.height > 0.0) {
+                CGFloat aspect = frame.size.width / frame.size.height;
+                CGFloat newW = parentW;
+                CGFloat newH = newW / aspect;
+                CGFloat newX = 0.0;
+                CGFloat newY = (parentH - newH) / 2.0;
+                if (newY < 0.0) newY = 0.0;
+                frame = CGRectMake(newX, newY, newW, newH);
+            }
+        }
+    }
+    %orig(frame);
+}
+
+%end
+
 static BOOL DKViewIsInsideClass(UIView *view, NSString *className) {
     Class cls = NSClassFromString(className);
     if (!cls) return NO;

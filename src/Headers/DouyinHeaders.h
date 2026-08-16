@@ -325,4 +325,10 @@
 @interface AWEAwemeAuthorContainerView : UIView
 @end
 
+@interface TTMetalViewVP : UIView
+@end
+
+@interface TTPlayerView : UIView
+@end
+
 #endif /* DouyinHeaders_h */
