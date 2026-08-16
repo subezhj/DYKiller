@@ -14,6 +14,7 @@
 #import "DKAudioProbe.h"
 #import "DKAudioRuntime.h"
 #import "DKTabBarProbe.h"
+#import <dlfcn.h>
 
 @interface DKDebugOverlayView : UIView
 @end
@@ -301,6 +302,44 @@ static void DKEnsureDebugWindow(void) {
     [self clampWrenchButton];
 }
 
+BOOL DKToggleFLEXExplorer(void) {
+    Class flexManagerClass = NSClassFromString(@"FLEXManager");
+    if (!flexManagerClass) {
+        NSArray *possiblePaths = @[
+            @"/Library/MobileSubstrate/DynamicLibraries/FLEX.dylib",
+            @"/Library/MobileSubstrate/DynamicLibraries/FLEX++.dylib",
+            [[NSBundle mainBundle].bundlePath stringByAppendingPathComponent:@"Frameworks/FLEX.dylib"],
+            [[NSBundle mainBundle].bundlePath stringByAppendingPathComponent:@"Frameworks/FLEX++.dylib"],
+            [[NSBundle mainBundle].bundlePath stringByAppendingPathComponent:@"FLEX.dylib"],
+            [[NSBundle mainBundle].bundlePath stringByAppendingPathComponent:@"FLEX++.dylib"]
+        ];
+
+        for (NSString *path in possiblePaths) {
+            if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+                dlopen([path UTF8String], RTLD_NOW);
+                flexManagerClass = NSClassFromString(@"FLEXManager");
+                if (flexManagerClass) break;
+            }
+        }
+
+        if (!flexManagerClass) {
+            flexManagerClass = NSClassFromString(@"FLEXManager");
+        }
+    }
+
+    if (flexManagerClass && [flexManagerClass respondsToSelector:@selector(sharedManager)]) {
+        id manager = [flexManagerClass performSelector:@selector(sharedManager)];
+        if ([manager respondsToSelector:@selector(toggleExplorer)]) {
+            [manager performSelector:@selector(toggleExplorer)];
+            return YES;
+        } else if ([manager respondsToSelector:@selector(showExplorer)]) {
+            [manager performSelector:@selector(showExplorer)];
+            return YES;
+        }
+    }
+    return NO;
+}
+
 - (void)showDebugMenu {
     if (!DKPrefBool(DKKeyDebugInspectorEnabled)) return;
 
@@ -310,6 +349,13 @@ static void DKEnsureDebugWindow(void) {
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"DYKiller Debug"
                                                                    message:nil
                                                             preferredStyle:UIAlertControllerStyleActionSheet];
+    [alert addAction:[UIAlertAction actionWithTitle:@"打开 FLEX++ 调试工具"
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(__unused UIAlertAction *action) {
+        if (!DKToggleFLEXExplorer()) {
+            DKPresentError(self, @"未检测到 FLEX++.dylib！\n请确认在打包或签名 IPA 时已注入 FLEX++ 动态库。");
+        }
+    }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"导出本页 zip"
                                               style:UIAlertActionStyleDefault
                                             handler:^(__unused UIAlertAction *action) {

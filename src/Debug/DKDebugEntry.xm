@@ -44,10 +44,29 @@ static AWESettingItemModel *DKMakeDebugSwitch(void) {
 
 %end
 
+static AWESettingItemModel *DKMakeFLEXButtonItem(void) {
+    return DKMakeButton(@"打开 FLEX++ 调试面板", @"调出/隐藏 FLEX++ 运行时 UI 层级与 API 调试工具栏", ^{
+        if (!DKToggleFLEXExplorer()) {
+            UIWindow *window = DKDebugTargetWindow();
+            UIViewController *topVC = DKDebugTopPresenter(window);
+            if (topVC) {
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"FLEX++ 提示"
+                                                                               message:@"未在进程中检测到 FLEX++.dylib！\n\n请在签名或打包 IPA 时添加注入 FLEX++.dylib 即可开启完整 FLEX 调试功能！"
+                                                                        preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleCancel handler:nil]];
+                [topVC presentViewController:alert animated:YES completion:nil];
+            }
+        }
+    });
+}
+
 %ctor {
     DKAudioProbeInstallIfEnabled(YES);
     DKSettingsRegisterItem(@"调试", ^AWESettingItemModel *{
         return DKMakeDebugSwitch();
+    });
+    DKSettingsRegisterItem(@"调试", ^AWESettingItemModel *{
+        return DKMakeFLEXButtonItem();
     });
     DKDebugInspectorInstall();
 }
