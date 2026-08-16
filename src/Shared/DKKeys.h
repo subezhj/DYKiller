@@ -89,6 +89,11 @@ static NSString *const DKKeyHideSearchRecommend = @"DYKillerHideSearchRecommend"
 // 拦截广告推送、监控埋点、活动挂件及垃圾资源联网请求。
 static NSString *const DKKeyBlockJunkResources = @"DYKillerBlockJunkResources";
 
+#pragma mark - 功能组：灵动岛
+
+// 灵动岛媒体直达与后台唤醒：在后台或锁屏时激活系统灵动岛媒体波形，点击直达抖音前台
+static NSString *const DKKeyMediaIslandEnabled = @"DYKillerMediaIslandEnabled";
+
 #pragma mark - 功能组：调试工具
 
 static NSString *const DKKeyDebugInspectorEnabled = @"DYKillerDebugInspectorEnabled";
