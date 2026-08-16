@@ -29,6 +29,13 @@
 @interface AWEAwemeModel : NSObject                                 // 单条内容模型
 @property (nonatomic, strong) AWEVideoModel *video;
 @property (nonatomic, assign) long long awemeType;
+@property (nonatomic, assign) BOOL isAd;
+@property (nonatomic, assign) BOOL isCommerce;
+@property (nonatomic, assign) NSInteger adLinkType;
+@end
+
+@interface AWEFeedCellViewController : UIViewController
+- (void)setModel:(id)model;
 @end
 
 // 视频+交互合并容器。其 .view 用于视频容器布局调整。

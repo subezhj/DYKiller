@@ -169,6 +169,47 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 %end
 
+%hook AWEAwemeModel
+
+- (BOOL)isAd {
+    if (DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)isCommerce {
+    if (DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (NSInteger)adLinkType {
+    if (DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
+        return 0;
+    }
+    return %orig;
+}
+
+%end
+
+%hook AWEFeedCellViewController
+
+- (void)setModel:(id)model {
+    %orig;
+    if (DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
+        if ([model respondsToSelector:@selector(isAd)] && [(id)model isAd]) {
+            self.view.hidden = YES;
+        }
+        if ([model respondsToSelector:@selector(isCommerce)] && [(id)model isCommerce]) {
+            self.view.hidden = YES;
+        }
+    }
+}
+
+%end
+
 %end
 
 %ctor {
