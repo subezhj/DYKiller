@@ -267,6 +267,31 @@ static void DKEnsureDebugWindow(void) {
 
     UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleWrenchPan:)];
     [self.wrenchButton addGestureRecognizer:pan];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleOrientationOrWindowChange:)
+                                                 name:UIDeviceOrientationDidChangeNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleOrientationOrWindowChange:)
+                                                 name:UIWindowDidBecomeKeyNotification
+                                               object:nil];
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (void)handleOrientationOrWindowChange:(NSNotification *)note {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (DKDebugWindow) {
+            DKDebugWindow.frame = DKDebugScreenBounds();
+            DKDebugWindow.windowLevel = UIWindowLevelAlert + 1000000.0;
+            DKDebugWindow.hidden = !DKPrefBool(DKKeyDebugInspectorEnabled);
+        }
+        [self.view setNeedsLayout];
+        [self clampWrenchButton];
+    });
 }
 
 - (void)viewDidLayoutSubviews {

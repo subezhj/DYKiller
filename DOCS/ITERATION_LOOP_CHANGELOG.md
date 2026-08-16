@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta77`** | 横屏视频切换时，小钥匙调试按钮缺失消失；阶段抓取时间可能延迟不及时 | 1. 监听 `UIDeviceOrientationDidChangeNotification` 与 `UIWindowDidBecomeKeyNotification` 自动重选最顶层全屏层级 (`1000000.0`) 并按横竖屏重分布；<br>2. 抓取开启时增加主线程实时同步 Flush 保障及时性 | `DKDebugInspector.m`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta76`** | 用户提出希望能强切 Apple 原生 `AVPlayer` (AVFoundation) 解码引擎以降低功耗并增强原生系统融合 | **iOS 原生 AVPlayer 解禁引擎**：开启开关后在 `AWEPlayVideoViewController` 中拦截 `playerType` 与 `useAVPlayer` 强切原生 `AVPlayer` | `DKVideoPageChrome.xm`<br>`DKVideoGeometry.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta75`** | CI 编译阶段 `DKFluidGestures.xm` 中 `setPlaybackRate:` 在 ObjC++ 严苛模式下报无已知选择器错误 | 使用动态函数指针强转 `(DKSetRateIMP)[self methodForSelector:sel]` 调用，彻底解除 Clang 编译隐患 | `DKFluidGestures.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta74`** | DyYY 悬浮图标遮挡画面；低清/压缩短视频模糊昏暗 | 1. **Metal GPU 锐化/彩增强引擎**：`TTMetalViewVP.layer` 注入 `CISharpenLuminance` & `CIColorControls`；<br>2. **0 图标流体手势**：两指捏合切清屏，两指轻击循环切倍速 | `DKFluidGestures.xm`<br>`DKVideoPageChrome.xm`<br>[`0bddd44`](https://github.com/subezhj/DYKiller/commit/0bddd44) |
