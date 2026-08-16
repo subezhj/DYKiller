@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta85`** | 重构调试录制流程：1. 开启抓取时立即变红高亮；2. 增加【📸 捕抓当前页快照】多页序列采集；3. 精简设置菜单无用冗余按钮 | **多页快照多段录制架构**：支持按页采集 `step1_`, `step2_` 图层与视图树快照，且开启后小钥匙高亮亮红白色边框 | `DKDebugInspector.m`<br>`DKDebugCapture.h`<br>`DKDebugExport.m`<br>`DKDebugEntry.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta84`** | 用户在两指捏合切清屏/放大视频时，希望能保留完整/可拖拽的底层视频进度条 | **清屏模式保留进度条系统** (`DKKeyKeepProgressInCleanMode`)：在 `dk_handleFluidPinch` 中精准过滤并保留 `AWEDPlayerProgressContainerView` / `AWEFeedProgressSlider` 透明度为 1.0 且可交互 | `DKFluidGestures.xm`<br>`DKVideoGeometry.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta83`** | 推荐页卡片显示“距离你 xx km”本地商业广告壳；验证 `1786887418` 性能降低至 844MB RAM | 挂钩 `AWEAwemeModel` 的 `isAd` / `isCommerce` / `adLinkType` 及 `AWEFeedCellViewController` 的 `setModel:` 彻底阻断本地广告卡片 | `DKJunkResourceBlocker.xm`<br>`DouyinHeaders.h`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta82`** | CI 编译阶段 `DKVideoPageChrome.xm` 中 `AWEPlayInteractionViewController` 重复声明 Hook 方法冲突报错 | 合并 `viewDidLayoutSubviews` Hook 方法块，彻底解除 Logos 符号生成重复冲突 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
