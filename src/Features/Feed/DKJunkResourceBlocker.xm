@@ -54,25 +54,42 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 %hook TTNetworkManager
 
-- (id)requestForURL:(NSString *)urlPath
-             method:(NSString *)method
-             params:(NSDictionary *)params
-       headerFields:(NSDictionary *)headerFields
-  requestSerializer:(Class)requestSerializer
- responseSerializer:(Class)responseSerializer
-         autoResume:(BOOL)autoResume
-           callback:(id)callback {
+- (id)requestForJSONWithURL:(NSString *)urlPath
+                     params:(id)params
+                     method:(id)method
+           needCommonParams:(BOOL)needCommonParams
+                headerField:(id)headerField
+          requestSerializer:(id)requestSerializer
+         responseSerializer:(id)responseSerializer
+                 autoResume:(BOOL)autoResume
+                   callback:(id)callback {
     if (DKPrefBool(DKKeyBlockJunkResources) && DKIsJunkURL(urlPath)) {
         return nil;
     }
     return %orig;
 }
 
-- (id)requestForJSONWithURL:(NSString *)urlPath
-                     method:(NSString *)method
-                     params:(NSDictionary *)params
-               headerFields:(NSDictionary *)headerFields
-                   callback:(id)callback {
+- (id)requestForJSONWithResponse:(NSString *)urlPath
+                          params:(id)params
+                          method:(id)method
+                needCommonParams:(BOOL)needCommonParams
+                     headerField:(id)headerField
+               requestSerializer:(id)requestSerializer
+              responseSerializer:(id)responseSerializer
+                      autoResume:(BOOL)autoResume
+                        callback:(id)callback {
+    if (DKPrefBool(DKKeyBlockJunkResources) && DKIsJunkURL(urlPath)) {
+        return nil;
+    }
+    return %orig;
+}
+
+- (id)requestForBinaryWithResponse:(NSString *)urlPath
+                            params:(id)params
+                            method:(id)method
+                  needCommonParams:(BOOL)needCommonParams
+                       headerField:(id)headerField
+                          callback:(id)callback {
     if (DKPrefBool(DKKeyBlockJunkResources) && DKIsJunkURL(urlPath)) {
         return nil;
     }
@@ -85,7 +102,8 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 - (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request completionHandler:(id)completionHandler {
     if (DKPrefBool(DKKeyBlockJunkResources) && DKIsJunkURL(request.URL.absoluteString)) {
-        return nil;
+        NSURLRequest *blankRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:@"about:blank"]];
+        return %orig(blankRequest, completionHandler);
     }
     return %orig;
 }
@@ -97,8 +115,8 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 - (void)layoutSubviews {
     %orig;
     if (DKPrefBool(DKKeyBlockJunkResources)) {
-        self.hidden = YES;
-        self.alpha = 0.0;
+        if (!self.hidden) self.hidden = YES;
+        if (self.alpha != 0.0) self.alpha = 0.0;
     }
 }
 
@@ -109,8 +127,8 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 - (void)layoutSubviews {
     %orig;
     if (DKPrefBool(DKKeyBlockJunkResources)) {
-        self.hidden = YES;
-        self.alpha = 0.0;
+        if (!self.hidden) self.hidden = YES;
+        if (self.alpha != 0.0) self.alpha = 0.0;
     }
 }
 
