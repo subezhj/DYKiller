@@ -49,8 +49,8 @@ static AWESettingItemModel *DKMakeDebugSwitch(void) {
 
 static AWESettingItemModel *DKMakeCaptureButtonItem(void) {
     BOOL capturing = DKIsLogCapturing();
-    NSString *title = capturing ? @"⏹️ 停止抓取并打包导出 ZIP (录制中...)" : @"▶️ 开启调试数据抓取 (阶段性数据抓取)";
-    NSString *detail = capturing ? @"正在录制 Hook 与网络/性能数据，点击立即停止并打包导出" : @"点击开启阶段性抓取，刷几个视频后点击【停止并导出】";
+    NSString *title = capturing ? @"⏹️ 停止抓取并提示导出 (录制中...)" : @"▶️ 开启调试数据抓取 (阶段性数据抓取)";
+    NSString *detail = capturing ? @"正在录制 Hook 与网络/性能数据，点击停止抓取" : @"点击开启阶段性抓取，刷几个视频后点击【停止并导出】";
 
     return DKMakeButton(title, detail, ^{
         if (DKIsLogCapturing()) {
@@ -58,9 +58,11 @@ static AWESettingItemModel *DKMakeCaptureButtonItem(void) {
             UIWindow *window = DKDebugTargetWindow();
             UIViewController *topVC = DKDebugTopPresenter(window);
             if (topVC) {
-                DKDebugExportContext *context = DKDebugCaptureContext(window, CGPointZero, nil);
-                context.presenter = topVC;
-                DKStartExport(context, DKDebugExportModePage);
+                UIAlertController *toast = [UIAlertController alertControllerWithTitle:@"⏹️ 调试抓取已关闭"
+                                                                               message:@"抓取已结束！请点击界面悬浮小钥匙【导出本页 zip】或【停止并导出】即可分享当前阶段的调试数据包！"
+                                                                        preferredStyle:UIAlertControllerStyleAlert];
+                [toast addAction:[UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleDefault handler:nil]];
+                [topVC presentViewController:toast animated:YES completion:nil];
             }
         } else {
             DKStartLogCapture();
@@ -68,7 +70,7 @@ static AWESettingItemModel *DKMakeCaptureButtonItem(void) {
             UIViewController *topVC = DKDebugTopPresenter(window);
             if (topVC) {
                 UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"▶️ 调试抓取已开启"
-                                                                               message:@"现已开始记录 Hook 与网络/性能数据。\n请任意刷几个视频或执行操作，完成后返回此处或点击小钥匙选【停止并导出】即可！"
+                                                                               message:@"现已开始记录 Hook 与网络/性能数据。\n请任意刷几个视频或执行操作，完成后点击悬浮小钥匙选【停止并导出】即可！"
                                                                         preferredStyle:UIAlertControllerStyleAlert];
                 [alert addAction:[UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleDefault handler:nil]];
                 [topVC presentViewController:alert animated:YES completion:nil];
