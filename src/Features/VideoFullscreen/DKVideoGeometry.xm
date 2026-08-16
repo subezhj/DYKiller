@@ -34,8 +34,16 @@ static const CGFloat kDKGeometryTolerance = 0.5;
 static void (*gRestoreHooks[4])(void);
 static NSUInteger gRestoreCount = 0;
 
+NSInteger DKVideoFullscreenModeValue(void) {
+    NSNumber *stored = [NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoFullscreenMode];
+    if (stored) {
+        return MAX(0, MIN(stored.integerValue, 2));
+    }
+    return DKPrefBool(DKKeyVideoFullscreen) ? 1 : 0;
+}
+
 BOOL DKVideoFullscreenOn(void) {
-    return DKPrefBool(DKKeyVideoFullscreen);
+    return DKVideoFullscreenModeValue() > 0;
 }
 
 static BOOL DKDYYYImageLoaded(void) {
@@ -116,6 +124,7 @@ static Class DKPlayInteractionClass(void) {
 // 它们只需保持容器自然满幅，背景延伸到底栏交给 DKVideoPageChrome.xm 的 DKSyncBackdrop。
 static BOOL DKMergeCanCoverScreen(AWEDPlayerViewController_Merge *merge) {
     if (![merge isKindOfClass:DKMergeClass()]) return NO;
+    if (DKVideoFullscreenModeValue() == 2) return NO;
 
     AWEAwemeModel *model = merge.model;
     if (model.awemeType == kDKAwemeTypeImage) return NO;
@@ -239,19 +248,15 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
 
 %ctor {
     DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
-        AWESettingItemModel *item = DKMakeSwitch(
-            DKKeyVideoFullscreen,
-            @"视频全屏",
-            @"首页、朋友页、好友聊天页、搜索页、用户作品页统一铺满整屏；"
-            @"其他比例视频的原生背景延伸至底栏，文案与进度条保持原位"
+        if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoFullscreenMode]) {
+            NSInteger legacy = DKPrefBool(DKKeyVideoFullscreen) ? 1 : 1;
+            [NSUserDefaults.standardUserDefaults setInteger:legacy forKey:DKKeyVideoFullscreenMode];
+        }
+        return DKMakeChoice(
+            DKKeyVideoFullscreenMode,
+            @"视频全屏模式",
+            @[ @"关闭全屏 (原版默认)", @"全屏模式 1：满屏填充 (画面无黑边)", @"全屏模式 2：原比例无损 (画面零裁切)" ]
         );
-        void (^origBlock)(void) = [item.switchChangedBlock copy];
-        item.switchChangedBlock = ^{
-            if (origBlock) origBlock();
-            if (DKVideoFullscreenOn()) return;
-            for (NSUInteger i = 0; i < gRestoreCount; i++) gRestoreHooks[i]();
-        };
-        return item;
     });
     DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
         if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyReadabilityTarget]) {

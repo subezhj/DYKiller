@@ -21,6 +21,9 @@
 extern "C" {
 #endif
 
+/// 视频全屏模式：0 关闭 / 1 满屏填充 (画面无黑边) / 2 原比例无损 (画面零裁切)
+NSInteger DKVideoFullscreenModeValue(void);
+
 /// 视频全屏总开关。首页、朋友页、好友聊天页、搜索页、其他用户作品页共用。
 BOOL DKVideoFullscreenOn(void);
 

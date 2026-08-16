@@ -13,6 +13,7 @@
 #import "DKVideoFeedTable.h"
 #import "DKKeys.h"
 #import "DKUtils.h"
+#import <AVFoundation/AVFoundation.h>
 #import <objc/runtime.h>
 #import <math.h>
 
@@ -238,6 +239,20 @@ static BOOL DKIsUnderRichContent(UIViewController *controller) {
     %orig;
     if (DKIsUnderRichContent(self)) return;
     DKSyncBackdrop(self, self.viewIfLoaded, DKPlayerBackdropColor(self));
+
+    if (DKVideoFullscreenModeValue() == 2) {
+        UIView *playerView = [self respondsToSelector:@selector(playerView)] ? (UIView *)[self performSelector:@selector(playerView)] : nil;
+        if (playerView) {
+            if ([playerView.layer respondsToSelector:@selector(setVideoGravity:)]) {
+                [(id)playerView.layer setVideoGravity:AVLayerVideoGravityResizeAspect];
+            }
+            for (CALayer *sub in playerView.layer.sublayers) {
+                if ([sub respondsToSelector:@selector(setVideoGravity:)]) {
+                    [(id)sub setVideoGravity:AVLayerVideoGravityResizeAspect];
+                }
+            }
+        }
+    }
 }
 
 %end

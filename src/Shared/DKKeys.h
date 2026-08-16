@@ -15,6 +15,8 @@
 
 #pragma mark - 功能组：视频全屏
 
+// 全屏模式：0 关闭 / 1 满屏填充 (画面无黑边) / 2 原比例无损 (画面零裁切)
+static NSString *const DKKeyVideoFullscreenMode = @"DYKillerVideoFullscreenMode";
 // 首页、朋友页、好友聊天页、搜索页、其他用户作品页统一由这一个开关控制。
 static NSString *const DKKeyVideoFullscreen = @"DYKillerVideoFullscreen";
 // 隐藏视频播放进度条但保留拖动热区；未写入时默认开启。
