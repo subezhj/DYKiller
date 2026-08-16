@@ -757,7 +757,7 @@ static void DKSyncCaptionShadow(UIView *caption) {
     %orig;
     NSInteger target = DKReadabilityTarget();
     if (target == 0 || target == 2) {
-        DKSyncCaptionShadow(self);
+        DKSyncCaptionShadow((UIView *)self);
     }
 }
 
@@ -769,7 +769,7 @@ static void DKSyncCaptionShadow(UIView *caption) {
     %orig;
     NSInteger target = DKReadabilityTarget();
     if (target == 1 || target == 2) {
-        DKSyncCaptionShadow(self);
+        DKSyncCaptionShadow((UIView *)self);
     }
 }
 
@@ -781,7 +781,7 @@ static void DKSyncCaptionShadow(UIView *caption) {
     %orig;
     NSInteger target = DKReadabilityTarget();
     if (target == 1 || target == 2) {
-        DKSyncCaptionShadow(self);
+        DKSyncCaptionShadow((UIView *)self);
     }
 }
 

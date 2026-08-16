@@ -319,4 +319,10 @@
 @interface AWEUserHomeVisitorButtonAccessView : UIView
 @end
 
+@interface AWEPlayInteractionUserNameLabel : UILabel
+@end
+
+@interface AWEAwemeAuthorContainerView : UIView
+@end
+
 #endif /* DouyinHeaders_h */
