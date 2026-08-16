@@ -277,4 +277,10 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
             @[ @"关闭", @"轻", @"标准", @"强" ]
         );
     });
+    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+        return DKMakeSwitch(DKKeyMetalSharpeningEnabled, @"Metal 画面边缘锐化", @"开启 GPU 边缘动态锐化，显著提升低清/压缩视频清晰度");
+    });
+    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+        return DKMakeSwitch(DKKeyMetalVibrantColorEnabled, @"Metal 画面色彩增强", @"开启智能画质对比度与饱和度调谐，让视频呈现 HDR 通透感");
+    });
 }

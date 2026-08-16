@@ -23,6 +23,12 @@ static NSString *const DKKeyVideoFullscreen = @"DYKillerVideoFullscreen";
 static NSString *const DKKeyHideVideoProgress = @"DYKillerHideVideoProgress";
 // 0 关闭 / 1 轻 / 2 标准 / 3 强。
 static NSString *const DKKeyVideoCaptionContrast = @"DYKillerVideoCaptionContrast";
+// 开启 Metal GPU 画面边缘锐化（提升低分辨率/压缩视频清晰度）
+static NSString *const DKKeyMetalSharpeningEnabled = @"DYKillerMetalSharpeningEnabled";
+// 开启 Metal Vibrant 画面色彩对比度与饱和度调谐
+static NSString *const DKKeyMetalVibrantColorEnabled = @"DYKillerMetalVibrantColorEnabled";
+// 开启非侵入式流体手势（双指捏合切清屏 / 双指轻击切倍速，0 悬浮图标）
+static NSString *const DKKeyFluidGesturesEnabled = @"DYKillerFluidGesturesEnabled";
 
 #pragma mark - 功能组：评论区
 

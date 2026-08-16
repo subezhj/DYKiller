@@ -372,6 +372,34 @@ static void DKApplyMode2AspectFit(UIView *playerView) {
 
 %hook TTMetalViewVP
 
+- (void)didMoveToWindow {
+    %orig;
+    BOOL sharpen = DKPrefBool(DKKeyMetalSharpeningEnabled);
+    BOOL vibrant = DKPrefBool(DKKeyMetalVibrantColorEnabled);
+
+    if (sharpen || vibrant) {
+        NSMutableArray *filters = [NSMutableArray array];
+        if (sharpen) {
+            CIFilter *f = [CIFilter filterWithName:@"CISharpenLuminance"];
+            if (f) {
+                [f setValue:@(0.65) forKey:@"inputSharpness"];
+                [filters addObject:f];
+            }
+        }
+        if (vibrant) {
+            CIFilter *f = [CIFilter filterWithName:@"CIColorControls"];
+            if (f) {
+                [f setValue:@(1.12) forKey:@"inputSaturation"];
+                [f setValue:@(1.06) forKey:@"inputContrast"];
+                [filters addObject:f];
+            }
+        }
+        if (filters.count > 0) {
+            self.layer.filters = filters;
+        }
+    }
+}
+
 - (void)setFrame:(CGRect)frame {
     if (DKVideoFullscreenModeValue() == 2) {
         UIView *superview = self.superview;
