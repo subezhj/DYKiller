@@ -613,14 +613,23 @@ UIColor *DKRichBackdropColor(UIViewController *container) {
 // 看门狗 0x8BADF00D（beta6 崩溃：EXC_CRASH SIGKILL / FRONTBOARD 8BADF00D，
 // 栈在 layoutSublayers / layoutBelowIfNeeded / UITableView 建 cell）。
 //
-// 与同文件 AWEGradientView 压暗拉伸同一手段：只叠 transform，不触发布局环；
-// 容器 clipsToBounds 放开后，渐变视觉上铺进 Cell 满高（好友页 843→926）。
 static void DKSyncRichClips(UIView *view) {
     if (!view) return;
 
     CGFloat full = DKVideoFullscreenOn() ? DKFullCellHeight(view) : 0.0;
+    if (full <= 0.0) {
+        // 在搜索图文详情页中，contentView 为 874pt 满高
+        CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
+        if (screenHeight > 0.0) full = screenHeight;
+    }
+
     if (full > CGRectGetHeight(view.bounds) + kDKSignatureTolerance) {
         DKAllowRichOverflow(view);
+        // 沿父链解除 clipsToBounds，使图片与底部渐变自然铺满至 874pt，消除底部黑条
+        for (UIView *p = view.superview; p; p = p.superview) {
+            if ([p isKindOfClass:NSClassFromString(@"UITableViewCellContentView")]) break;
+            DKAllowRichOverflow(p);
+        }
         return;
     }
 
@@ -632,6 +641,10 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 
     CGFloat height = CGRectGetHeight(gradient.bounds);
     CGFloat full = DKVideoFullscreenOn() ? DKFullCellHeight(gradient) : 0.0;
+    if (full <= 0.0) {
+        CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
+        if (screenHeight > 0.0) full = screenHeight;
+    }
 
     if (height > 0.0 && full > height + kDKSignatureTolerance
         && DKApplyVerticalStretch(
@@ -754,10 +767,55 @@ void DKHUDStatusBarCoverSync(UIViewController *interaction) {
     }
 }
 
+#pragma mark - 全场景精准分类识别与排版控制系统
+
+// 场景分类 1: 是否存在活跃的主底栏 TabBar (首页推荐、个人作品列表、精选精华频道)
+static BOOL DKHasActiveTabBar(UIView *view) {
+    if (!view) return NO;
+    UIWindow *window = view.window ?: UIApplication.sharedApplication.keyWindow;
+    if (!window) return NO;
+
+    Class tabBarClass = NSClassFromString(@"AWENormalModeTabBar");
+    if (!tabBarClass) return NO;
+
+    for (UIView *sub in window.subviews) {
+        if ([sub isKindOfClass:tabBarClass] && !sub.hidden && sub.alpha > 0.1) {
+            return YES;
+        }
+        for (UIView *sub2 in sub.subviews) {
+            if ([sub2 isKindOfClass:tabBarClass] && !sub2.hidden && sub2.alpha > 0.1) {
+                return YES;
+            }
+        }
+    }
+    return NO;
+}
+
+// 场景分类 2: 判定是否处于作品页/主页频道
+static BOOL DKIsProfileOrChannelFeed(UIViewController *interaction) {
+    NSString *refer = nil;
+    if ([interaction respondsToSelector:@selector(referString)]) {
+        refer = [interaction performSelector:@selector(referString)];
+    }
+    if (refer && (
+        [refer isEqualToString:@"personal_homepage"] ||
+        [refer isEqualToString:@"others_homepage"] ||
+        [refer isEqualToString:@"user_post"] ||
+        [refer isEqualToString:@"homepage_fresh"] ||
+        [refer isEqualToString:@"homepage_popular"] ||
+        [refer isEqualToString:@"homepage_hot"]
+    )) {
+        return YES;
+    }
+    return NO;
+}
+
+// 场景分类 3: 判定是否来自搜索结果 (视频 / 图文详情)
 static BOOL DKNavigationCameFromSearch(UIViewController *controller) {
     Class searchClass = NSClassFromString(@"AWESearchViewController");
+    Class searchResultClass = NSClassFromString(@"AWESearchResultViewController");
     for (UIViewController *entry in controller.navigationController.viewControllers) {
-        if ([entry isKindOfClass:searchClass]) return YES;
+        if ([entry isKindOfClass:searchClass] || [entry isKindOfClass:searchResultClass]) return YES;
     }
     return NO;
 }
@@ -773,14 +831,17 @@ static BOOL DKIsAuthorDescriptionStack(UIView *view) {
     return YES;
 }
 
+// 【场景分类 2 处理】：搜索视频页文案安全下沉 (消除偏高 100pt，且避开 frame 循环)
 static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     UIView *hud = interaction.viewIfLoaded;
     Class stackClass = NSClassFromString(@"AWEElementStackView");
     if (!hud || !stackClass) return;
 
+    // 仅在明确来自搜索详情的视频 Cell 中激活下移，其它有底栏的场景绝不下移
     BOOL active = DKVideoFullscreenOn()
         && DKViewIsInsideClass(hud, @"AWEAwemeDetailTableViewCell")
-        && DKNavigationCameFromSearch(interaction);
+        && DKNavigationCameFromSearch(interaction)
+        && !DKIsRichContentCell(hud);
 
     CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 0.0;
     CGFloat targetBottom = CGRectGetHeight(hud.bounds) - safeBottom;
@@ -876,28 +937,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 
 %end
 
-// 参考 DYYY 全屏机制：作品页/详情页保持原生 HUD 容器高度，背景视频单独拉满，
-static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
-    NSString *refer = nil;
-    if ([interaction respondsToSelector:@selector(referString)]) {
-        refer = [interaction performSelector:@selector(referString)];
-    }
-    // 仅在用户个人作品页（personal_homepage / others_homepage / user_post）预留 75pt 空间，
-    // 以防止合集栏与防沉迷栏重叠；
-    // 其余所有场景（经验视频 homepage_fresh/fresh/experience、群聊 chat、搜索 general_search、首页推荐等）一律满高 (874pt)，彻底解决文案偏高。
-    if (refer && (
-        [refer isEqualToString:@"personal_homepage"] ||
-        [refer isEqualToString:@"others_homepage"] ||
-        [refer isEqualToString:@"user_post"]
-    ) && !DKNavigationCameFromSearch(interaction)) {
-        return NO;
-    }
-    return YES;
-}
-
-// 完全对齐 DYYY 全屏判定逻辑：
-//   · 经验视频、群聊视频、搜索视频与首页推荐拉满 (874pt)；
-//   · 仅在用户个人主页作品页 (personal_homepage/others_homepage) 预留 75pt 保持原生 Stack 自动排版。
+// 全场景 Interaction 交互容器高度精确派发
 %hook AWEPlayInteractionViewController
 
 - (void)viewDidLayoutSubviews {
@@ -916,16 +956,41 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
 
     if (!DKIsSearchDetailView(self.viewIfLoaded)) {
         DKHUDStatusBarCoverSync(self);
-        DKSyncSearchDetailChrome(self);
     }
+    // 针对搜索视频进行文案高度同步
+    DKSyncSearchDetailChrome(self);
 
-    if (DKVideoGeometryOn() && DKViewIsInsideClass(self.viewIfLoaded, @"AWEAwemeDetailTableViewCell")) {
+    if (DKVideoGeometryOn()) {
         UIView *view = self.viewIfLoaded;
         if (view && view.superview) {
             CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
             if (superviewHeight > 700.0) {
-                // 在二级详情页与作品播放页中，无 TabBar，必须保持 100% 满高 (874pt)，彻底杜绝底部 75pt 黑条
+                /*
+                 * 【场景全屏分类高度决策系统】：
+                 * 1. 存在悬浮主 TabBar 或属于个人主页/作品页/精选页（Step 1, Step 2, Step 3）：
+                 *    Interaction 必须保留 75pt 底栏安全距离（高度 = superviewHeight - 75.0 = 799pt），
+                 *    使内部文案 Stack 自然停靠在 798.6pt 黄金高度，彻底解决个人主页/精选页文案被底栏遮挡的问题！
+                 * 2. 无主 TabBar 的二级搜索视频页或纯沉浸页（Step 4, Step 5）：
+                 *    Interaction 撑满 874pt，文案自然靠底。
+                 * 3. 搜索图文页（Step 6）：
+                 *    保持 799pt，由渐变 overflow 覆盖底部黑条，避免死锁卡死。
+                 */
+                BOOL hasTabBar = DKHasActiveTabBar(view) || DKIsProfileOrChannelFeed(self);
+                BOOL inSearch = DKNavigationCameFromSearch(self);
+
                 CGFloat targetHeight = superviewHeight;
+                if (hasTabBar && !inSearch) {
+                    // 【分类 1：底栏保护型】(Step 1 首页推荐, Step 2 个人作品页, Step 3 精华页)
+                    targetHeight = superviewHeight - 75.0;
+                } else if (inSearch && DKIsRichContentCell(view)) {
+                    // 【分类 3：搜索图文型】(Step 6 搜索图文)
+                    targetHeight = superviewHeight - 75.0;
+                } else {
+                    // 【分类 2 & 4：搜索视频与无底栏沉浸型】(Step 4 经验页, Step 5 搜索视频)
+                    targetHeight = superviewHeight;
+                }
+
+                // 仅在 frame 发生真实改变时更新，防止触发搜索列表的死锁布局风暴
                 if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
                     CGRect frame = view.frame;
                     frame.size.height = targetHeight;
