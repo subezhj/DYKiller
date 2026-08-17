@@ -963,49 +963,19 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     if (!DKIsSearchDetailView(self.viewIfLoaded)) {
         DKHUDStatusBarCoverSync(self);
     }
-    // 针对搜索视频进行文案高度同步
-    DKSyncSearchDetailChrome(self);
-
     if (DKVideoGeometryOn()) {
         UIView *view = self.viewIfLoaded;
         if (view && view.superview) {
             CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
             if (superviewHeight > 700.0) {
                 /*
-                 * 【全场景精准高度决策系统】：
-                 * 1. 首页推荐 / 朋友 / 经验 / 个人作品页（AWEFeedTableView 或有已撑高 feedTable 挂载）：
-                 *    这类场景下由 DKVideoFeedTable 负责将 HUD 钉在撑高前的原始高度 (799pt)，
-                 *    保证文案自然排在底栏上方 (798.6pt 黄金高度)。
-                 * 2. 精华页等二级详情页（AWEAwemeDetailTableViewCell）：
-                 *    若检测到来自搜索 (DKNavigationCameFromSearch) 或处于无底栏沉浸详情流中，
-                 *    如果是搜索图文，保持 799pt 避免死锁；如果是搜索纯视频，则拉满 874pt 且下移文案。
-                 * 3. 精华频道（AWEHPNormalChannelPageViewController 下的 AWEAwemeDetailTableViewController）：
-                 *    若窗口存在活跃 TabBar，则必须保持 799pt，防止文案沉入 TabBar 背后！
+                 * 【绝对统一黄金法则】：
+                 * 交互容器 (Interaction HUD) 在所有场景下（推荐、个人主页、精华、经验、搜索视频、搜索图文）
+                 * 恒定保持高度为 superviewHeight - 75.0 (799pt)。
+                 * 使得 AutoLayout 内部的所有文案/头像/点赞 StackView 统一定位在距离底部 75pt 的黄金基准线 (y = 798.6pt)，
+                 * 彻底消除所有场景的“沉底遮挡”与“浮空偏高”冲突！
                  */
-                BOOL inFeedTable = (DKFeedTableForView(view) != nil);
-                BOOL inDetailCell = DKViewIsInsideClass(view, @"AWEAwemeDetailTableViewCell");
-                BOOL inSearch = DKNavigationCameFromSearch(self);
-
-                CGFloat targetHeight = superviewHeight;
-                if (inFeedTable) {
-                    // Feed 列表流（推荐、朋友、个人作品、经验）：
-                    // 这些流的表本身被撑满，由 DKVideoFeedTable 负责 HUD 原始高度钉位，此处保持 799pt
-                    targetHeight = superviewHeight - 75.0;
-                } else if (inDetailCell) {
-                    if (inSearch && DKIsRichContentCell(view)) {
-                        // 搜索图文：保持 799pt
-                        targetHeight = superviewHeight - 75.0;
-                    } else if (inSearch) {
-                        // 搜索纯视频：拉满 874pt，由 DKSyncSearchDetailChrome 负责对齐
-                        targetHeight = superviewHeight;
-                    } else {
-                        // 精华频道等其他二级详情页：保持 799pt，文案停靠在底栏上方
-                        targetHeight = superviewHeight - 75.0;
-                    }
-                } else {
-                    targetHeight = superviewHeight - 75.0;
-                }
-
+                CGFloat targetHeight = superviewHeight - 75.0;
                 if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
                     CGRect frame = view.frame;
                     frame.size.height = targetHeight;
