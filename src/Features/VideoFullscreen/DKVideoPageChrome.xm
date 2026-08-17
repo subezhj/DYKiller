@@ -624,8 +624,7 @@ static void DKSyncRichClips(UIView *view) {
     if (!view) return;
 
     CGFloat full = DKVideoFullscreenOn() ? DKFullCellHeight(view) : 0.0;
-    // 只有在确定是独立详情页/搜索详情页且 contentView 本身被撑满时才 fallback 到 screenHeight
-    if (full <= 0.0 && DKViewIsInsideClass(view, @"AWEAwemeDetailTableViewCell")) {
+    if (full <= 0.0) {
         CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
         if (screenHeight > 0.0) full = screenHeight;
     }
@@ -648,7 +647,7 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 
     CGFloat height = CGRectGetHeight(gradient.bounds);
     CGFloat full = DKVideoFullscreenOn() ? DKFullCellHeight(gradient) : 0.0;
-    if (full <= 0.0 && DKViewIsInsideClass(gradient, @"AWEAwemeDetailTableViewCell")) {
+    if (full <= 0.0) {
         CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
         if (screenHeight > 0.0) full = screenHeight;
     }
