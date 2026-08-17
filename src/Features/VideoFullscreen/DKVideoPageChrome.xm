@@ -965,19 +965,57 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     if (DKVideoGeometryOn()) {
         UIView *view = self.viewIfLoaded;
         if (view && view.superview) {
-            CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
-            if (superviewHeight > 700.0) {
-                /*
-                 * 【绝对统一黄金法则】：
-                 * 交互容器 (Interaction HUD) 在所有场景下（推荐、个人主页、精华、经验、搜索视频、搜索图文）
-                 * 恒定保持高度为 superviewHeight - 75.0 (799pt)。
-                 * 使得 AutoLayout 内部的所有文案/头像/点赞 StackView 统一定位在距离底部 75pt 的黄金基准线 (y = 798.6pt)，
-                 * 彻底消除所有场景的“沉底遮挡”与“浮空偏高”冲突！
-                 */
-                CGFloat targetHeight = superviewHeight - 75.0;
-                if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
-                    CGRect frame = view.frame;
-                    frame.size.height = targetHeight;
+            CGRect frame = view.frame;
+            CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
+            CGFloat superviewHeight = view.superview.frame.size.height;
+
+            if (frame.size.width == screenWidth || frame.size.height >= superviewHeight) {
+                NSString *currentReferString = [self respondsToSelector:@selector(referString)] ? (NSString *)[self performSelector:@selector(referString)] : nil;
+
+                BOOL isShowingRelatedMixViewController = NO;
+                UIViewController *sceneParentVC = self.parentViewController;
+                int sceneDepth = 0;
+                while (sceneParentVC && sceneDepth < 8) {
+                    if ([sceneParentVC isKindOfClass:NSClassFromString(@"AWEMixVideoPanelDetailTableViewController")]) {
+                        if ([sceneParentVC respondsToSelector:@selector(isShowingRelatedMixViewController)]) {
+                            isShowingRelatedMixViewController = ((BOOL (*)(id, SEL))objc_msgSend)(sceneParentVC, @selector(isShowingRelatedMixViewController));
+                        }
+                        break;
+                    }
+                    sceneParentVC = sceneParentVC.parentViewController;
+                    sceneDepth++;
+                }
+
+                // DYYY 原版核心场景分流白名单：
+                // 搜索、私聊(chat)、挑战、离线、密友、合集等无底栏页面必须使用 fullHeight (满高 874pt)！
+                // 推荐、个人主页、朋友等有底栏页面使用 superviewHeight - 75.0 (799pt)
+                BOOL useFullHeight = [currentReferString isEqualToString:@"general_search"] ||
+                                     [currentReferString isEqualToString:@"search_result"] ||
+                                     [currentReferString isEqualToString:@"search_ecommerce"] ||
+                                     [currentReferString isEqualToString:@"close_friends_moment"] ||
+                                     [currentReferString isEqualToString:@"offline_mode"] ||
+                                     [currentReferString isEqualToString:@"challenge"] ||
+                                     [currentReferString isEqualToString:@"general_search_scan"] ||
+                                     currentReferString == nil ||
+                                     isShowingRelatedMixViewController;
+
+                if (!useFullHeight && [currentReferString isEqualToString:@"chat"]) {
+                    AWEAwemeModel *currentModel = [self respondsToSelector:@selector(model)] ? (AWEAwemeModel *)[self performSelector:@selector(model)] : nil;
+                    BOOL isLiveModel = currentModel && (([currentModel respondsToSelector:@selector(isLive)] && currentModel.isLive) ||
+                                                        ([currentModel respondsToSelector:@selector(cellRoom)] && currentModel.cellRoom != nil) ||
+                                                        ([currentModel respondsToSelector:@selector(videoFeedTag)] && [currentModel.videoFeedTag isEqualToString:@"直播中"]));
+                    if (!isLiveModel) {
+                        useFullHeight = YES;
+                    }
+                }
+
+                if (useFullHeight) {
+                    frame.size.height = superviewHeight;
+                } else {
+                    frame.size.height = superviewHeight - 75.0;
+                }
+
+                if (fabs(frame.size.height - view.frame.size.height) > 0.5) {
                     view.frame = frame;
                 }
             }
