@@ -799,6 +799,8 @@ static BOOL DKIsAuthorDescriptionStack(UIView *view) {
     return YES;
 }
 
+static BOOL DKInteractionUsesFullHeight(UIViewController *interaction);
+
 static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     // 仅在满高场景（首页推荐、搜索、经验等）允许动态下沉文案；个人作品页保持原生 75pt 预留排版，绝对不能额外下沉！
     if (!DKInteractionUsesFullHeight(interaction)) {
