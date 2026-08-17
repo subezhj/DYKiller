@@ -672,9 +672,18 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 
 - (void)viewDidLayoutSubviews {
     %orig;
-    // 不改 RichContent 根视图 frame：搜索详情滑动复用时宿主会持续写回 799pt，
-    // 与强制 874pt 形成布局风暴。底部黑条仅由渐变 overflow 延伸覆盖。
     DKSyncRichClips(self.viewIfLoaded);
+    if (DKVideoGeometryOn()) {
+        UIView *view = self.viewIfLoaded;
+        if (view && view.superview) {
+            CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
+            if (superviewHeight > 700.0 && fabs(CGRectGetHeight(view.frame) - superviewHeight) > 0.5) {
+                CGRect frame = view.frame;
+                frame.size.height = superviewHeight;
+                view.frame = frame;
+            }
+        }
+    }
 }
 
 %end
@@ -919,16 +928,15 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
         DKSyncSearchDetailChrome(self);
     }
 
-    if (DKVideoGeometryOn() && DKViewIsInsideClass(self.viewIfLoaded, @"AWEAwemeDetailTableViewCell")) {
+    if (DKVideoGeometryOn()) {
         UIView *view = self.viewIfLoaded;
         if (view && view.superview) {
             CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
             if (superviewHeight > 700.0) {
-                // 在二级详情页与作品播放页中，无 TabBar，必须保持 100% 满高 (874pt)，彻底杜绝底部 75pt 黑条
-                CGFloat targetHeight = superviewHeight;
-                if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
+                // 全屏模式下，Interaction 容器铺满 874pt，让左下角文案 StackView 自然贴底排版，消除浮空 75pt 空白并消灭底部黑条
+                if (fabs(CGRectGetHeight(view.frame) - superviewHeight) > 0.5) {
                     CGRect frame = view.frame;
-                    frame.size.height = targetHeight;
+                    frame.size.height = superviewHeight;
                     view.frame = frame;
                 }
             }
