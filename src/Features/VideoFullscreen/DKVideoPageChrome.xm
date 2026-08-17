@@ -979,7 +979,14 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
                 while (sceneParentVC && sceneDepth < 8) {
                     if ([sceneParentVC isKindOfClass:NSClassFromString(@"AWEMixVideoPanelDetailTableViewController")]) {
                         if ([sceneParentVC respondsToSelector:@selector(isShowingRelatedMixViewController)]) {
-                            isShowingRelatedMixViewController = ((BOOL (*)(id, SEL))objc_msgSend)(sceneParentVC, @selector(isShowingRelatedMixViewController));
+                            NSMethodSignature *sig = [sceneParentVC methodSignatureForSelector:@selector(isShowingRelatedMixViewController)];
+                            if (sig) {
+                                NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+                                [inv setSelector:@selector(isShowingRelatedMixViewController)];
+                                [inv setTarget:sceneParentVC];
+                                [inv invoke];
+                                [inv getReturnValue:&isShowingRelatedMixViewController];
+                            }
                         }
                         break;
                     }
@@ -1001,10 +1008,18 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
                                      isShowingRelatedMixViewController;
 
                 if (!useFullHeight && [currentReferString isEqualToString:@"chat"]) {
-                    AWEAwemeModel *currentModel = [self respondsToSelector:@selector(model)] ? (AWEAwemeModel *)[self performSelector:@selector(model)] : nil;
-                    BOOL isLiveModel = currentModel && (([currentModel respondsToSelector:@selector(isLive)] && currentModel.isLive) ||
-                                                        ([currentModel respondsToSelector:@selector(cellRoom)] && currentModel.cellRoom != nil) ||
-                                                        ([currentModel respondsToSelector:@selector(videoFeedTag)] && [currentModel.videoFeedTag isEqualToString:@"直播中"]));
+                    id currentModel = [self respondsToSelector:@selector(model)] ? [self performSelector:@selector(model)] : nil;
+                    BOOL isLiveModel = NO;
+                    if (currentModel) {
+                        if ([currentModel respondsToSelector:@selector(isLive)] && [currentModel performSelector:@selector(isLive)]) {
+                            isLiveModel = YES;
+                        } else if ([currentModel respondsToSelector:@selector(cellRoom)] && [currentModel performSelector:@selector(cellRoom)] != nil) {
+                            isLiveModel = YES;
+                        } else if ([currentModel respondsToSelector:@selector(videoFeedTag)]) {
+                            NSString *tag = (NSString *)[currentModel performSelector:@selector(videoFeedTag)];
+                            if ([tag isEqualToString:@"直播中"]) isLiveModel = YES;
+                        }
+                    }
                     if (!isLiveModel) {
                         useFullHeight = YES;
                     }
