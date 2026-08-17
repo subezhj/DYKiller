@@ -467,6 +467,13 @@ static BOOL DKViewIsInsideClass(UIView *view, NSString *className) {
     return NO;
 }
 
+static BOOL DKIsRichContentCell(UIView *view) {
+    if (!view) return NO;
+    return DKViewIsInsideClass(view, @"RichContentContainerViewController")
+        || DKViewIsInsideClass(view, @"AWEStoryContainerCollectionView")
+        || DKViewIsInsideClass(view, @"ImageContentView");
+}
+
 #pragma mark - 图文
 
 static NSHashTable<UIView *> *gDKManagedVisualViews;
