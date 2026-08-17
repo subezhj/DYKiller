@@ -15,6 +15,7 @@
 #import "DKUtils.h"
 #import <AVFoundation/AVFoundation.h>
 #import <objc/runtime.h>
+#import <objc/message.h>
 #import <math.h>
 
 // 结构签名的统一容差：覆盖 @3x 像素对齐与进度条收放时的亚像素漂移。
