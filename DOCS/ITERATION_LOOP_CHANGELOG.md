@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta93`** | 落地类似 FLEX 的【2D 视觉线框透视截图 (`screenshot_wireframe.png`)】自动生成系统 | 在调试快照中叠加渲染控件矩形边框、分类色块（绿色文本/紫色容器/青色控制/橙色画面）与 `{x, y, w, h}` 坐标徽章 | `DKDebugCapture.h`<br>`DKDebugCapture.m`<br>`DKDebugExport.m`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta92`** | 解剖 `1786924776` 与 FLEX 截图：1. 消除左下角文案 StackView 底部 75pt 浮空空白；2. 彻底消除图文/二级详情页底部黑条 | 1. 扩展 `AWEPlayInteractionViewController` 满高至 `superviewHeight` (874pt)，使文案栈自然贴底排版；<br>2. 释放 `RichContentContainerViewController` 满高填充 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta91`** | 1. 加回全屏播放横屏按钮 `AWELandscapeFeedEntryView`；<br>2. 修复二级详情页无 TabBar 时出现的 75pt 底部黑条 | 1. 从极简控件与渲染优化隐藏列表中剔除 `AWELandscapeFeedEntryView`；<br>2. 在 `AWEAwemeDetailTableViewCell` 中将 `targetHeight` 强制拉满 `superviewHeight` (874pt)，彻底消灭底部黑条 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta90`** | CI 编译阶段 `DouyinHeaders.h` 中 `AWEFeedProgressSlider` 重复声明接口报错 | 移除重复前向声明，保持唯一声明引用，彻底解除 Clang 重定义错误 | `DouyinHeaders.h`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |

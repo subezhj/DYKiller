@@ -224,6 +224,9 @@ static void DKWritePageFiles(DKExportSink *sink,
             if (step.screenshotPNG) {
                 DKWriteData(sink, [folder stringByAppendingPathComponent:@"screenshot.png"], step.screenshotPNG, NO);
             }
+            if (step.wireframePNG) {
+                DKWriteData(sink, [folder stringByAppendingPathComponent:@"screenshot_wireframe.png"], step.wireframePNG, NO);
+            }
             if (step.viewTreeText) {
                 DKWriteString(sink, [folder stringByAppendingPathComponent:@"view-tree.txt"], step.viewTreeText, NO);
             }
@@ -311,6 +314,9 @@ DKDebugExportResult *DKDebugCreateExport(DKDebugExportContext *context,
     DKExportSink *sink = [[DKExportSink alloc] initWithRootDir:rootDir];
     DKWriteString(sink, @"README.txt", DKReadme(context, mode), mode == DKDebugExportModeAudio);
     DKWriteData(sink, @"ui/screenshot.png", context.screenshotPNG, NO);
+    if (context.wireframePNG) {
+        DKWriteData(sink, @"ui/screenshot_wireframe.png", context.wireframePNG, NO);
+    }
     DKWriteString(sink, @"probe/tabbar.txt", context.probeText, NO);
     DKWriteString(sink, @"probe/network_requests.txt", DKNetworkLoggerReport() ?: @"", NO);
 

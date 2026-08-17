@@ -386,6 +386,81 @@ static NSData *DKScreenshotPNG(UIWindow *targetWindow) {
     return image ? UIImagePNGRepresentation(image) : NSData.data;
 }
 
+static void DKDrawViewWireframeRecursive(UIView *view, CGContextRef ctx, CGRect screenBounds) {
+    if (!view || view.hidden || view.alpha < 0.05) return;
+    if (view.bounds.size.width < 1.0 || view.bounds.size.height < 1.0) return;
+
+    NSString *clsName = NSStringFromClass([view class]);
+    if ([clsName hasPrefix:@"DKDebug"] || [clsName hasPrefix:@"FLEX"]) return;
+
+    CGRect screenRect = [view convertRect:view.bounds toView:nil];
+    if (!CGRectIntersectsRect(screenRect, screenBounds)) return;
+
+    UIColor *strokeColor = nil;
+    if ([clsName containsString:@"Label"] || [clsName containsString:@"Text"] || [clsName containsString:@"Description"] || [clsName containsString:@"Author"]) {
+        strokeColor = [UIColor colorWithRed:0.0 green:0.9 blue:0.45 alpha:0.9]; // 绿色：文本与作者信息
+    } else if ([clsName containsString:@"Stack"] || [clsName containsString:@"Container"] || [clsName containsString:@"ElementView"]) {
+        strokeColor = [UIColor colorWithRed:0.95 green:0.2 blue:0.9 alpha:0.85]; // 粉紫色：Stack 容器与排版框
+    } else if ([clsName containsString:@"Button"] || [clsName containsString:@"Bar"] || [clsName containsString:@"Progress"] || [clsName containsString:@"Slider"] || [clsName containsString:@"Entry"]) {
+        strokeColor = [UIColor colorWithRed:0.0 green:0.85 blue:1.0 alpha:0.9]; // 青蓝色：控制按钮与底部栏
+    } else if ([clsName containsString:@"Video"] || [clsName containsString:@"Player"] || [clsName containsString:@"Metal"]) {
+        strokeColor = [UIColor colorWithRed:1.0 green:0.55 blue:0.0 alpha:0.8]; // 橙色：播放器画面
+    } else if (view.subviews.count == 0) {
+        strokeColor = [UIColor colorWithRed:1.0 green:0.9 blue:0.2 alpha:0.75]; // 黄色：叶子视图
+    }
+
+    if (strokeColor) {
+        CGContextSetStrokeColorWithColor(ctx, strokeColor.CGColor);
+        CGContextSetLineWidth(ctx, 1.5);
+        CGContextStrokeRect(ctx, screenRect);
+
+        CGContextSetFillColorWithColor(ctx, [strokeColor colorWithAlphaComponent:0.06].CGColor);
+        CGContextFillRect(ctx, screenRect);
+
+        if (screenRect.size.width >= 60 && screenRect.size.height >= 16) {
+            NSString *tag = [NSString stringWithFormat:@"%@ {%.0f,%.0f,%.0f,%.0f}", clsName, screenRect.origin.x, screenRect.origin.y, screenRect.size.width, screenRect.size.height];
+            NSDictionary *attrs = @{
+                NSFontAttributeName: [UIFont boldSystemFontOfSize:8.0],
+                NSForegroundColorAttributeName: [UIColor whiteColor],
+                NSBackgroundColorAttributeName: [UIColor colorWithWhite:0.1 alpha:0.75]
+            };
+            [tag drawAtPoint:CGPointMake(screenRect.origin.x + 2, screenRect.origin.y + 1) withAttributes:attrs];
+        }
+    }
+
+    for (UIView *sub in view.subviews) {
+        DKDrawViewWireframeRecursive(sub, ctx, screenBounds);
+    }
+}
+
+static NSData *DKWireframeScreenshotPNG(UIWindow *targetWindow) {
+    if (!targetWindow) return NSData.data;
+
+    NSArray<UIWindow *> *windows =
+        [DKDebugActiveWindows() sortedArrayUsingComparator:^NSComparisonResult(UIWindow *a, UIWindow *b) {
+            if (a.windowLevel == b.windowLevel) return NSOrderedSame;
+            return a.windowLevel < b.windowLevel ? NSOrderedAscending : NSOrderedDescending;
+        }];
+    if (windows.count == 0) windows = @[ targetWindow ];
+
+    CGRect screenBounds = targetWindow.bounds;
+    UIGraphicsBeginImageContextWithOptions(screenBounds.size, NO, 0);
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+
+    for (UIWindow *window in windows) {
+        BOOL drew = [window drawViewHierarchyInRect:window.bounds afterScreenUpdates:NO];
+        if (!drew) [window.layer renderInContext:ctx];
+    }
+
+    for (UIWindow *window in windows) {
+        DKDrawViewWireframeRecursive(window, ctx, screenBounds);
+    }
+
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image ? UIImagePNGRepresentation(image) : NSData.data;
+}
+
 #pragma mark - 页面类收集
 
 // 收集一个类及其整条继承链的类名：跳过运行时生成子类噪声，但继续上溯 → 自动收到真实基类。
@@ -498,6 +573,7 @@ DKDebugExportContext *DKDebugCaptureContext(UIWindow *targetWindow, CGPoint poin
     context.viewControllersText = vcText;
     context.layersJSON = layersJSON;
     context.screenshotPNG = DKScreenshotPNG(targetWindow);
+    context.wireframePNG = DKWireframeScreenshotPNG(targetWindow);
     context.summary = summary;
     context.pageClassNames = pageClasses.allObjects;
     context.sourceView = targetWindow;
