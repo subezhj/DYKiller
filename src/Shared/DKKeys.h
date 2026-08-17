@@ -66,6 +66,8 @@ static NSString *const DKKeyGlassTabBar      = @"DYKillerGlassTabBar";
 static NSString *const DKKeyGlassTabBarClear = @"DYKillerGlassTabBarClear";
 // 按底栏每个按钮下方内容的明暗分别切换模板标题颜色。
 static NSString *const DKKeyGlassTabBarAutoTint = @"DYKillerGlassTabBarAutoTint";
+// 底部交互与进度条抬升高度（0 关闭 / 1 抬升 4pt / 2 抬升 8pt / 3 抬升 12pt / 4 抬升 16pt）
+static NSString *const DKKeyInteractionBottomLiftOffset = @"DYKillerInteractionBottomLiftOffset";
 // 完全隐藏主底栏及其悬浮玻璃效果
 static NSString *const DKKeyHideBottomBar    = @"DYKillerHideBottomBar";
 

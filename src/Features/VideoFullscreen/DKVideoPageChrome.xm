@@ -1028,7 +1028,15 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
                 if (useFullHeight) {
                     frame.size.height = superviewHeight;
                 } else {
-                    frame.size.height = superviewHeight - 75.0;
+                    CGFloat liftOffset = 0.0;
+                    NSNumber *liftSetting = [NSUserDefaults.standardUserDefaults objectForKey:DKKeyInteractionBottomLiftOffset];
+                    NSInteger liftIdx = liftSetting ? liftSetting.integerValue : 2;
+                    if (liftIdx == 1) liftOffset = 4.0;
+                    else if (liftIdx == 2) liftOffset = 8.0;
+                    else if (liftIdx == 3) liftOffset = 12.0;
+                    else if (liftIdx == 4) liftOffset = 16.0;
+
+                    frame.size.height = superviewHeight - 75.0 - liftOffset;
                 }
 
                 if (fabs(frame.size.height - view.frame.size.height) > 0.5) {

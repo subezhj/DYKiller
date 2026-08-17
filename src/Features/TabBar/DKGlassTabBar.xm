@@ -1054,6 +1054,17 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
     });
 
     DKSettingsRegisterItem(@"底栏", ^AWESettingItemModel *{
+        if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyInteractionBottomLiftOffset]) {
+            [NSUserDefaults.standardUserDefaults setInteger:2 forKey:DKKeyInteractionBottomLiftOffset];
+        }
+        return DKMakeChoice(
+            DKKeyInteractionBottomLiftOffset,
+            @"底部交互与进度条抬升",
+            @[ @"关闭 (默认)", @"微抬升 (+4pt)", @"标准抬升 (+8pt 推荐)", @"明显抬升 (+12pt)", @"超高抬升 (+16pt)" ]
+        );
+    });
+
+    DKSettingsRegisterItem(@"底栏", ^AWESettingItemModel *{
         AWESettingItemModel *item = DKMakeSwitch(
             DKKeyHideBottomBar,
             @"移除底栏",
