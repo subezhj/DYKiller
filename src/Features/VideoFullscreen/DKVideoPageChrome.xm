@@ -679,6 +679,32 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 
 %end
 
+%hook AFDPureModePageContainerViewController
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    UIView *view = self.viewIfLoaded;
+    if (!view) return;
+    CGFloat superHeight = CGRectGetHeight(view.bounds);
+    if (superHeight < 700.0) return;
+
+    for (UIView *sub in view.subviews) {
+        // 清屏/纯享模式下的内容视图（图文/视频容器），拉满至 874pt 满屏，彻底消灭底部黑底
+        if (CGRectGetHeight(sub.frame) > 650.0 && CGRectGetHeight(sub.frame) < superHeight) {
+            CGRect f = sub.frame;
+            f.size.height = superHeight;
+            sub.frame = f;
+        }
+        // 底部操作栏（识别图案/暂停/退出按钮等）设为透明背景，悬浮在画面之上，不占据黑底空间
+        if (CGRectGetMinY(sub.frame) >= 780.0) {
+            sub.backgroundColor = [UIColor clearColor];
+            sub.opaque = NO;
+        }
+    }
+}
+
+%end
+
 %hook AWEKnowledgeGradientView
 
 - (void)layoutSubviews {
@@ -778,18 +804,17 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     Class stackClass = NSClassFromString(@"AWEElementStackView");
     if (!hud || !stackClass) return;
 
-    BOOL active = DKVideoFullscreenOn()
-        && DKViewIsInsideClass(hud, @"AWEAwemeDetailTableViewCell")
-        && DKNavigationCameFromSearch(interaction);
+    BOOL active = DKVideoFullscreenOn() || DKPrefBool(DKKeyTransparentTabBar) || DKNavigationCameFromSearch(interaction);
 
     CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 0.0;
-    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - safeBottom;
+    // 目标贴底坐标：保留适度安全区，让文案整体自然下沉至屏幕底端 (消除浮空 75pt 空白)
+    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - MAX(safeBottom, 16.0);
 
     for (UIView *view in hud.subviews) {
         if (!DKIsAuthorDescriptionStack(view)) continue;
         CGFloat width = CGRectGetWidth(view.bounds);
         CGFloat height = CGRectGetHeight(view.bounds);
-        if (height < 40.0 || (width < 200.0 && width > 100.0)) continue;
+        if (height < 30.0 || (width < 200.0 && width > 100.0)) continue;
 
         NSValue *stored = objc_getAssociatedObject(view, &kDKSearchChromeFrameKey);
         NSValue *lastApplied = objc_getAssociatedObject(view, &kDKSearchChromeAppliedFrameKey);
@@ -811,7 +836,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
                                      OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         }
         CGFloat delta = targetBottom - CGRectGetMaxY(nativeFrame);
-        if (delta <= kDKSignatureTolerance) continue;
+        if (delta <= kDKSignatureTolerance && delta >= -kDKSignatureTolerance) continue;
         CGRect adjusted = nativeFrame;
         adjusted.origin.y += delta;
         objc_setAssociatedObject(view, &kDKSearchChromeAppliedFrameKey,
