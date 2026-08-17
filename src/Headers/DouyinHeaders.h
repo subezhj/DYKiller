@@ -110,9 +110,6 @@
 - (void)updateShrinkState:(BOOL)shrink insets:(UIEdgeInsets)insets animated:(BOOL)animated;
 @end
 
-@interface AFDPureModePageContainerViewController : UIViewController
-@end
-
 // 视频表的基类。首页/朋友页的 AWEFeedTableView 与好友聊天/搜索/其他用户主页的
 // AWEAwemeDetailTableView 都从它派生；被底栏压掉一个底栏高时就是视频不全屏的源头层。
 @interface AWEFeedDataSafeTableView : UITableView

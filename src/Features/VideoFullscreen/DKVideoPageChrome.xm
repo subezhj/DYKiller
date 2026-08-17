@@ -673,34 +673,8 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 - (void)viewDidLayoutSubviews {
     %orig;
     // 不改 RichContent 根视图 frame：搜索详情滑动复用时宿主会持续写回 799pt，
-    // 与强制 874pt 形成布局风暴。底部黑条由渐变 overflow 延伸覆盖。
+    // 与强制 874pt 形成布局风暴。底部黑条仅由渐变 overflow 延伸覆盖。
     DKSyncRichClips(self.viewIfLoaded);
-}
-
-%end
-
-%hook AFDPureModePageContainerViewController
-
-- (void)viewDidLayoutSubviews {
-    %orig;
-    UIView *view = self.viewIfLoaded;
-    if (!view) return;
-    CGFloat superHeight = CGRectGetHeight(view.bounds);
-    if (superHeight < 700.0) return;
-
-    for (UIView *sub in view.subviews) {
-        // 清屏/纯享模式下的内容视图（图文/视频容器），拉满至 874pt 满屏，彻底消灭底部黑底
-        if (CGRectGetHeight(sub.frame) > 650.0 && CGRectGetHeight(sub.frame) < superHeight) {
-            CGRect f = sub.frame;
-            f.size.height = superHeight;
-            sub.frame = f;
-        }
-        // 底部操作栏（识别图案/暂停/退出按钮等）设为透明背景，悬浮在画面之上，不占据黑底空间
-        if (CGRectGetMinY(sub.frame) >= 780.0) {
-            sub.backgroundColor = [UIColor clearColor];
-            sub.opaque = NO;
-        }
-    }
 }
 
 %end
@@ -799,41 +773,23 @@ static BOOL DKIsAuthorDescriptionStack(UIView *view) {
     return YES;
 }
 
-static BOOL DKInteractionUsesFullHeight(UIViewController *interaction);
-
 static void DKSyncSearchDetailChrome(UIViewController *interaction) {
-    // 仅在满高场景（首页推荐、搜索、经验等）允许动态下沉文案；个人作品页保持原生 75pt 预留排版，绝对不能额外下沉！
-    if (!DKInteractionUsesFullHeight(interaction)) {
-        UIView *hud = interaction.viewIfLoaded;
-        if (hud) {
-            for (UIView *view in hud.subviews) {
-                if (!DKIsAuthorDescriptionStack(view)) continue;
-                NSValue *stored = objc_getAssociatedObject(view, &kDKSearchChromeFrameKey);
-                if (stored) {
-                    view.frame = stored.CGRectValue;
-                    objc_setAssociatedObject(view, &kDKSearchChromeFrameKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-                    objc_setAssociatedObject(view, &kDKSearchChromeAppliedFrameKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-                }
-            }
-        }
-        return;
-    }
-
     UIView *hud = interaction.viewIfLoaded;
     Class stackClass = NSClassFromString(@"AWEElementStackView");
     if (!hud || !stackClass) return;
 
-    BOOL active = DKVideoFullscreenOn() || DKPrefBool(DKKeyGlassTabBar) || DKPrefBool(DKKeyHideBottomBar) || DKNavigationCameFromSearch(interaction);
+    BOOL active = DKVideoFullscreenOn()
+        && DKViewIsInsideClass(hud, @"AWEAwemeDetailTableViewCell")
+        && DKNavigationCameFromSearch(interaction);
 
     CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 0.0;
-    // 目标贴底坐标：保留适度安全区，让文案整体自然下沉至屏幕底端 (消除浮空 75pt 空白)
-    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - MAX(safeBottom, 16.0);
+    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - safeBottom;
 
     for (UIView *view in hud.subviews) {
         if (!DKIsAuthorDescriptionStack(view)) continue;
         CGFloat width = CGRectGetWidth(view.bounds);
         CGFloat height = CGRectGetHeight(view.bounds);
-        if (height < 30.0 || (width < 200.0 && width > 100.0)) continue;
+        if (height < 40.0 || (width < 200.0 && width > 100.0)) continue;
 
         NSValue *stored = objc_getAssociatedObject(view, &kDKSearchChromeFrameKey);
         NSValue *lastApplied = objc_getAssociatedObject(view, &kDKSearchChromeAppliedFrameKey);
@@ -855,7 +811,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
                                      OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         }
         CGFloat delta = targetBottom - CGRectGetMaxY(nativeFrame);
-        if (delta <= kDKSignatureTolerance && delta >= -kDKSignatureTolerance) continue;
+        if (delta <= kDKSignatureTolerance) continue;
         CGRect adjusted = nativeFrame;
         adjusted.origin.y += delta;
         objc_setAssociatedObject(view, &kDKSearchChromeAppliedFrameKey,
@@ -963,13 +919,13 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
         DKSyncSearchDetailChrome(self);
     }
 
-    if (DKVideoGeometryOn() && !DKIsSearchDetailView(self.viewIfLoaded)) {
+    if (DKVideoGeometryOn() && DKViewIsInsideClass(self.viewIfLoaded, @"AWEAwemeDetailTableViewCell")) {
         UIView *view = self.viewIfLoaded;
         if (view && view.superview) {
             CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
             if (superviewHeight > 700.0) {
-                BOOL useFull = DKInteractionUsesFullHeight(self);
-                CGFloat targetHeight = useFull ? superviewHeight : (superviewHeight - 75.0);
+                // 在二级详情页与作品播放页中，无 TabBar，必须保持 100% 满高 (874pt)，彻底杜绝底部 75pt 黑条
+                CGFloat targetHeight = superviewHeight;
                 if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
                     CGRect frame = view.frame;
                     frame.size.height = targetHeight;

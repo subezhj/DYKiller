@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta99`** | 完整回退前几个版本的全屏布局实验性修改，恢复至最稳定、最纯净的基线排版 | 完全回滚 `DKVideoPageChrome.xm` 中近期的全局文案下移、容器强拉满等布局逻辑，严格恢复至 beta91 稳定版；保留 2D 视觉线框透视截图 (`screenshot_wireframe.png`) 调试工具 | `DKVideoPageChrome.xm`<br>`DouyinHeaders.h`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta98`** | 修复 CI 编译阶段 `DKInteractionUsesFullHeight` 前向声明缺失报错 | 补充 C 函数前向声明，保持严格类型与符号作用域完整，彻底恢复 CI 自动化编译打包 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta97`** | 修复个人主页作品页 (`personal_homepage` / `others_homepage`) 文案沉下去超界问题 | 严格对齐 DYYY 全屏机制：在 `personal_homepage` / `others_homepage` / `user_post` 下严禁执行动态下沉位移，精准保留 75pt 预留排版空间 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta96`** | 修复 CI 编译阶段 `DKKeyTransparentTabBar` 未声明报错 | 更正为已声明的 `DKKeyGlassTabBar` 与 `DKKeyHideBottomBar` 宏，彻底恢复 Actions 自动化打包 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
