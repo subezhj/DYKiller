@@ -804,7 +804,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
     Class stackClass = NSClassFromString(@"AWEElementStackView");
     if (!hud || !stackClass) return;
 
-    BOOL active = DKVideoFullscreenOn() || DKPrefBool(DKKeyTransparentTabBar) || DKNavigationCameFromSearch(interaction);
+    BOOL active = DKVideoFullscreenOn() || DKPrefBool(DKKeyGlassTabBar) || DKPrefBool(DKKeyHideBottomBar) || DKNavigationCameFromSearch(interaction);
 
     CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 0.0;
     // 目标贴底坐标：保留适度安全区，让文案整体自然下沉至屏幕底端 (消除浮空 75pt 空白)

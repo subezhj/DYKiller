@@ -10,6 +10,7 @@
 
 | 版本号 | 核心需求与场景痛点 | 底层解法与技术突破 | 关键 Hook 文件与提交 Commit |
 | :--- | :--- | :--- | :--- |
+| **`0.5.5-beta96`** | 修复 CI 编译阶段 `DKKeyTransparentTabBar` 未声明报错 | 更正为已声明的 `DKKeyGlassTabBar` 与 `DKKeyHideBottomBar` 宏，彻底恢复 Actions 自动化打包 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta95`** | 1. 深度分析线框图：将左下角文案 StackView 全量同步贴底，消除浮空 75pt 空白；<br>2. 修复清屏/纯享/放大视频模式下底部识图栏导致的 75pt 黑底 | 1. 扩展 `DKSyncSearchDetailChrome` 为全场景作者/文案动态贴底对齐；<br>2. Hook `AFDPureModePageContainerViewController` 满屏 874pt 伸展并将识图操作栏背景透明悬浮 | `DouyinHeaders.h`<br>`DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta94`** | 修复搜索页滑动视频时因 frame 循环重设导致的布局风暴主线程卡死问题 | 移除 `RichContentContainerViewController` 根 frame 修改，对 `AWEPlayInteractionViewController` 增加 `!DKIsSearchDetailView` 安全防护，由 `DKSyncSearchDetailChrome` 单独处理搜索页作者/文案下移，彻底解除死锁 | `DKVideoPageChrome.xm`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
 | **`0.5.5-beta93`** | 落地类似 FLEX 的【2D 视觉线框透视截图 (`screenshot_wireframe.png`)】自动生成系统 | 在调试快照中叠加渲染控件矩形边框、分类色块（绿色文本/紫色容器/青色控制/橙色画面）与 `{x, y, w, h}` 坐标徽章 | `DKDebugCapture.h`<br>`DKDebugCapture.m`<br>`DKDebugExport.m`<br>[`control`](file:///c:/Users/30676/Documents/project/douyin/DYKiller_repo/control) |
