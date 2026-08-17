@@ -800,6 +800,23 @@ static BOOL DKIsAuthorDescriptionStack(UIView *view) {
 }
 
 static void DKSyncSearchDetailChrome(UIViewController *interaction) {
+    // 仅在满高场景（首页推荐、搜索、经验等）允许动态下沉文案；个人作品页保持原生 75pt 预留排版，绝对不能额外下沉！
+    if (!DKInteractionUsesFullHeight(interaction)) {
+        UIView *hud = interaction.viewIfLoaded;
+        if (hud) {
+            for (UIView *view in hud.subviews) {
+                if (!DKIsAuthorDescriptionStack(view)) continue;
+                NSValue *stored = objc_getAssociatedObject(view, &kDKSearchChromeFrameKey);
+                if (stored) {
+                    view.frame = stored.CGRectValue;
+                    objc_setAssociatedObject(view, &kDKSearchChromeFrameKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                    objc_setAssociatedObject(view, &kDKSearchChromeAppliedFrameKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                }
+            }
+        }
+        return;
+    }
+
     UIView *hud = interaction.viewIfLoaded;
     Class stackClass = NSClassFromString(@"AWEElementStackView");
     if (!hud || !stackClass) return;
@@ -949,10 +966,11 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
         if (view && view.superview) {
             CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
             if (superviewHeight > 700.0) {
-                // 全屏模式下，Interaction 容器铺满 874pt，让左下角文案 StackView 自然贴底排版，消除浮空 75pt 空白并消灭底部黑条
-                if (fabs(CGRectGetHeight(view.frame) - superviewHeight) > 0.5) {
+                BOOL useFull = DKInteractionUsesFullHeight(self);
+                CGFloat targetHeight = useFull ? superviewHeight : (superviewHeight - 75.0);
+                if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
                     CGRect frame = view.frame;
-                    frame.size.height = superviewHeight;
+                    frame.size.height = targetHeight;
                     view.frame = frame;
                 }
             }
