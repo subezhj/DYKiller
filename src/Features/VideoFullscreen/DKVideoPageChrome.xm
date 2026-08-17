@@ -983,22 +983,27 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
                  *    若窗口存在活跃 TabBar，则必须保持 799pt，防止文案沉入 TabBar 背后！
                  */
                 BOOL inFeedTable = (DKFeedTableForView(view) != nil);
-                BOOL hasActiveTabBar = DKHasActiveTabBar(view);
+                BOOL inDetailCell = DKViewIsInsideClass(view, @"AWEAwemeDetailTableViewCell");
                 BOOL inSearch = DKNavigationCameFromSearch(self);
 
                 CGFloat targetHeight = superviewHeight;
                 if (inFeedTable) {
-                    // Feed 列表流：直接交由 DKVideoFeedTable 钉位，保持 799pt
+                    // Feed 列表流（推荐、朋友、个人作品、经验）：
+                    // 这些流的表本身被撑满，由 DKVideoFeedTable 负责 HUD 原始高度钉位，此处保持 799pt
                     targetHeight = superviewHeight - 75.0;
-                } else if (hasActiveTabBar && !inSearch) {
-                    // 【精华页 / 频道详情页且存在 TabBar】：保留 75pt 底栏安全区，彻底解决文案太靠下被遮挡！
-                    targetHeight = superviewHeight - 75.0;
-                } else if (inSearch && DKIsRichContentCell(view)) {
-                    // 【搜索图文】：保持 799pt
-                    targetHeight = superviewHeight - 75.0;
+                } else if (inDetailCell) {
+                    if (inSearch && DKIsRichContentCell(view)) {
+                        // 搜索图文：保持 799pt
+                        targetHeight = superviewHeight - 75.0;
+                    } else if (inSearch) {
+                        // 搜索纯视频：拉满 874pt，由 DKSyncSearchDetailChrome 负责对齐
+                        targetHeight = superviewHeight;
+                    } else {
+                        // 精华频道等其他二级详情页：保持 799pt，文案停靠在底栏上方
+                        targetHeight = superviewHeight - 75.0;
+                    }
                 } else {
-                    // 【搜索视频 / 无底栏独立详情页】：满高 874pt
-                    targetHeight = superviewHeight;
+                    targetHeight = superviewHeight - 75.0;
                 }
 
                 if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
