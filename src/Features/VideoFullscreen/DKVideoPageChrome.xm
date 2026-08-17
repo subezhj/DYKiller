@@ -672,18 +672,9 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 
 - (void)viewDidLayoutSubviews {
     %orig;
+    // 不改 RichContent 根视图 frame：搜索详情滑动复用时宿主会持续写回 799pt，
+    // 与强制 874pt 形成布局风暴。底部黑条由渐变 overflow 延伸覆盖。
     DKSyncRichClips(self.viewIfLoaded);
-    if (DKVideoGeometryOn()) {
-        UIView *view = self.viewIfLoaded;
-        if (view && view.superview) {
-            CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
-            if (superviewHeight > 700.0 && fabs(CGRectGetHeight(view.frame) - superviewHeight) > 0.5) {
-                CGRect frame = view.frame;
-                frame.size.height = superviewHeight;
-                view.frame = frame;
-            }
-        }
-    }
 }
 
 %end
@@ -928,7 +919,7 @@ static BOOL DKInteractionUsesFullHeight(UIViewController *interaction) {
         DKSyncSearchDetailChrome(self);
     }
 
-    if (DKVideoGeometryOn()) {
+    if (DKVideoGeometryOn() && !DKIsSearchDetailView(self.viewIfLoaded)) {
         UIView *view = self.viewIfLoaded;
         if (view && view.superview) {
             CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
