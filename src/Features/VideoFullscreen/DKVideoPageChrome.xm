@@ -624,8 +624,8 @@ static void DKSyncRichClips(UIView *view) {
     if (!view) return;
 
     CGFloat full = DKVideoFullscreenOn() ? DKFullCellHeight(view) : 0.0;
-    if (full <= 0.0) {
-        // 在搜索图文详情页中，contentView 为 874pt 满高
+    // 只有在确定是独立详情页/搜索详情页且 contentView 本身被撑满时才 fallback 到 screenHeight
+    if (full <= 0.0 && DKViewIsInsideClass(view, @"AWEAwemeDetailTableViewCell")) {
         CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
         if (screenHeight > 0.0) full = screenHeight;
     }
@@ -648,7 +648,7 @@ static void DKSyncKnowledgeGradientStretch(UIView *gradient) {
 
     CGFloat height = CGRectGetHeight(gradient.bounds);
     CGFloat full = DKVideoFullscreenOn() ? DKFullCellHeight(gradient) : 0.0;
-    if (full <= 0.0) {
+    if (full <= 0.0 && DKViewIsInsideClass(gradient, @"AWEAwemeDetailTableViewCell")) {
         CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
         if (screenHeight > 0.0) full = screenHeight;
     }
@@ -850,8 +850,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
         && DKNavigationCameFromSearch(interaction)
         && !DKIsRichContentCell(hud);
 
-    CGFloat safeBottom = hud.window ? hud.window.safeAreaInsets.bottom : 0.0;
-    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - safeBottom;
+    CGFloat targetBottom = CGRectGetHeight(hud.bounds) - 75.0;
 
     for (UIView *view in hud.subviews) {
         if (!DKIsAuthorDescriptionStack(view)) continue;
@@ -973,31 +972,35 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
             CGFloat superviewHeight = CGRectGetHeight(view.superview.bounds);
             if (superviewHeight > 700.0) {
                 /*
-                 * 【场景全屏分类高度决策系统】：
-                 * 1. 存在悬浮主 TabBar 或属于个人主页/作品页/精选页（Step 1, Step 2, Step 3）：
-                 *    Interaction 必须保留 75pt 底栏安全距离（高度 = superviewHeight - 75.0 = 799pt），
-                 *    使内部文案 Stack 自然停靠在 798.6pt 黄金高度，彻底解决个人主页/精选页文案被底栏遮挡的问题！
-                 * 2. 无主 TabBar 的二级搜索视频页或纯沉浸页（Step 4, Step 5）：
-                 *    Interaction 撑满 874pt，文案自然靠底。
-                 * 3. 搜索图文页（Step 6）：
-                 *    保持 799pt，由渐变 overflow 覆盖底部黑条，避免死锁卡死。
+                 * 【全场景精准高度决策系统】：
+                 * 1. 首页推荐 / 朋友 / 经验 / 个人作品页（AWEFeedTableView 或有已撑高 feedTable 挂载）：
+                 *    这类场景下由 DKVideoFeedTable 负责将 HUD 钉在撑高前的原始高度 (799pt)，
+                 *    保证文案自然排在底栏上方 (798.6pt 黄金高度)。
+                 * 2. 精华页等二级详情页（AWEAwemeDetailTableViewCell）：
+                 *    若检测到来自搜索 (DKNavigationCameFromSearch) 或处于无底栏沉浸详情流中，
+                 *    如果是搜索图文，保持 799pt 避免死锁；如果是搜索纯视频，则拉满 874pt 且下移文案。
+                 * 3. 精华频道（AWEHPNormalChannelPageViewController 下的 AWEAwemeDetailTableViewController）：
+                 *    若窗口存在活跃 TabBar，则必须保持 799pt，防止文案沉入 TabBar 背后！
                  */
-                BOOL hasTabBar = DKHasActiveTabBar(view) || DKIsProfileOrChannelFeed(self);
+                BOOL inFeedTable = (DKFeedTableForView(view) != nil);
+                BOOL hasActiveTabBar = DKHasActiveTabBar(view);
                 BOOL inSearch = DKNavigationCameFromSearch(self);
 
                 CGFloat targetHeight = superviewHeight;
-                if (hasTabBar && !inSearch) {
-                    // 【分类 1：底栏保护型】(Step 1 首页推荐, Step 2 个人作品页, Step 3 精华页)
+                if (inFeedTable) {
+                    // Feed 列表流：直接交由 DKVideoFeedTable 钉位，保持 799pt
+                    targetHeight = superviewHeight - 75.0;
+                } else if (hasActiveTabBar && !inSearch) {
+                    // 【精华页 / 频道详情页且存在 TabBar】：保留 75pt 底栏安全区，彻底解决文案太靠下被遮挡！
                     targetHeight = superviewHeight - 75.0;
                 } else if (inSearch && DKIsRichContentCell(view)) {
-                    // 【分类 3：搜索图文型】(Step 6 搜索图文)
+                    // 【搜索图文】：保持 799pt
                     targetHeight = superviewHeight - 75.0;
                 } else {
-                    // 【分类 2 & 4：搜索视频与无底栏沉浸型】(Step 4 经验页, Step 5 搜索视频)
+                    // 【搜索视频 / 无底栏独立详情页】：满高 874pt
                     targetHeight = superviewHeight;
                 }
 
-                // 仅在 frame 发生真实改变时更新，防止触发搜索列表的死锁布局风暴
                 if (fabs(CGRectGetHeight(view.frame) - targetHeight) > 0.5) {
                     CGRect frame = view.frame;
                     frame.size.height = targetHeight;
