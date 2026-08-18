@@ -21,6 +21,11 @@
 @interface AWEAwemeIMDetailTableViewController : AWEAwemeDetailTableViewController   // 私信「分享视频」详情页专属表控制器（作用域判定用）
 @end
 
+@interface AWEMixVideoPanelDetailTableViewController : AWEAwemeDetailTableViewController
+@property (nonatomic, strong) UIView *bottomBackgroundView;
+@property (nonatomic, assign) BOOL isShowingRelatedMixViewController;
+@end
+
 @interface AWEVideoModel : NSObject                                 // 视频信息（取宽高判比例）
 @property (nonatomic, strong) NSNumber *width;
 @property (nonatomic, strong) NSNumber *height;

@@ -949,16 +949,14 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
 - (void)viewDidLayoutSubviews {
     %orig;
     if (DKVideoFullscreenOn()) {
-        if ([self respondsToSelector:@selector(bottomBackgroundView)]) {
-            UIView *bg = (UIView *)[self performSelector:@selector(bottomBackgroundView)];
-            if (bg) {
-                if (bg.backgroundColor != [UIColor clearColor]) {
-                    bg.backgroundColor = [UIColor clearColor];
-                    bg.layer.backgroundColor = [UIColor clearColor].CGColor;
-                    bg.opaque = NO;
-                }
-                if (!bg.hidden) bg.hidden = YES;
+        UIView *bg = self.bottomBackgroundView;
+        if (bg) {
+            if (bg.backgroundColor != [UIColor clearColor]) {
+                bg.backgroundColor = [UIColor clearColor];
+                bg.layer.backgroundColor = [UIColor clearColor].CGColor;
+                bg.opaque = NO;
             }
+            if (!bg.hidden) bg.hidden = YES;
         }
     }
 }
@@ -999,17 +997,9 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
                 UIViewController *sceneParentVC = self.parentViewController;
                 int sceneDepth = 0;
                 while (sceneParentVC && sceneDepth < 8) {
-                    if ([sceneParentVC isKindOfClass:NSClassFromString(@"AWEMixVideoPanelDetailTableViewController")]) {
-                        if ([sceneParentVC respondsToSelector:@selector(isShowingRelatedMixViewController)]) {
-                            NSMethodSignature *sig = [sceneParentVC methodSignatureForSelector:@selector(isShowingRelatedMixViewController)];
-                            if (sig) {
-                                NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-                                [inv setSelector:@selector(isShowingRelatedMixViewController)];
-                                [inv setTarget:sceneParentVC];
-                                [inv invoke];
-                                [inv getReturnValue:&isShowingRelatedMixViewController];
-                            }
-                        }
+                    if ([sceneParentVC isKindOfClass:[AWEMixVideoPanelDetailTableViewController class]]) {
+                        AWEMixVideoPanelDetailTableViewController *mixDetailVC = (AWEMixVideoPanelDetailTableViewController *)sceneParentVC;
+                        isShowingRelatedMixViewController = mixDetailVC.isShowingRelatedMixViewController;
                         break;
                     }
                     sceneParentVC = sceneParentVC.parentViewController;
