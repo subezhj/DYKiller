@@ -90,6 +90,9 @@ BOOL DKIsSearchDetailView(UIView *view) {
 }
 
 BOOL DKVideoGeometryOn(void) {
+    if (DKVideoGeometryOwnedByDYYY()) {
+        return NO;
+    }
     return DKVideoFullscreenOn();
 }
 
