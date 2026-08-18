@@ -997,7 +997,7 @@ static void DKSyncSearchDetailChrome(UIViewController *interaction) {
                 UIViewController *sceneParentVC = self.parentViewController;
                 int sceneDepth = 0;
                 while (sceneParentVC && sceneDepth < 8) {
-                    if ([sceneParentVC isKindOfClass:[AWEMixVideoPanelDetailTableViewController class]]) {
+                    if ([sceneParentVC isKindOfClass:%c(AWEMixVideoPanelDetailTableViewController)]) {
                         AWEMixVideoPanelDetailTableViewController *mixDetailVC = (AWEMixVideoPanelDetailTableViewController *)sceneParentVC;
                         isShowingRelatedMixViewController = mixDetailVC.isShowingRelatedMixViewController;
                         break;
