@@ -204,7 +204,10 @@ static BOOL DKIsProgressRelatedView(UIView *sub) {
 %end
 
 %ctor {
+    // 待手势体验完善后再开放入口
+    /*
     DKSettingsRegisterItem(@"视频全屏", ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyFluidGesturesEnabled, @"非侵入式流体手势", @"两指捏合任意位置切清屏，两指轻击循环切倍速（0 悬浮图标）");
     });
+    */
 }

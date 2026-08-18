@@ -133,6 +133,13 @@ static NSString *const DKKeyLiveActivityIslandEnabled = @"DYKillerLiveActivityIs
 // 画中画悬浮直达秒开：退后台时开启系统画中画小窗，点击画中画恢复按钮 100% 绝对无条件秒开切回抖音
 static NSString *const DKKeyPiPQuickLaunchEnabled = @"DYKillerPiPQuickLaunchEnabled";
 
+#pragma mark - 功能组：新特性与实验性功能 (Experimental)
+
+// [实验性] ProMotion 120Hz 极速触控响应：优化手势时钟优先级，消除滑动短视频与列表的手势抖动与延迟
+static NSString *const DKKeyProMotionFluidScrollEnabled = @"DYKillerProMotionFluidScrollEnabled";
+// [实验性] 智能后台冻结与内存防杀 (Anti-Jetsam)：退后台深度压缩 Lynx 与网络缓存，杜绝系统杀后台，实现前台秒开
+static NSString *const DKKeyBackgroundAntiJetsamEnabled = @"DYKillerBackgroundAntiJetsamEnabled";
+
 #pragma mark - 功能组：调试工具
 
 static NSString *const DKKeyDebugInspectorEnabled = @"DYKillerDebugInspectorEnabled";

@@ -364,4 +364,10 @@
 @interface AWEFeedStickerContainerView : UIView
 @end
 
+@interface AWEFeedDataSafeTableView : UITableView
+@end
+
+@interface AWEShellViewController : UIViewController
+@end
+
 #endif /* DouyinHeaders_h */
