@@ -4,6 +4,7 @@
 //  监听 dyld image 后到主线程安装 runtime hook，在榜单 UI 创建前短路。
 //
 
+#import "DouyinHeaders.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
 #import "DKUtils.h"
