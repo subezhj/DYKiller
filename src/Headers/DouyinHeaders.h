@@ -355,7 +355,4 @@
 @interface AWEFeedStickerContainerView : UIView
 @end
 
-@interface AWEAwemePlayletWaterMarkView : UIView
-@end
-
 #endif /* DouyinHeaders_h */
