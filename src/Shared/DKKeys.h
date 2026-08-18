@@ -139,6 +139,8 @@ static NSString *const DKKeyPiPQuickLaunchEnabled = @"DYKillerPiPQuickLaunchEnab
 static NSString *const DKKeyProMotionFluidScrollEnabled = @"DYKillerProMotionFluidScrollEnabled";
 // [实验性] 智能后台冻结与内存防杀 (Anti-Jetsam)：退后台深度压缩 Lynx 与网络缓存，杜绝系统杀后台，实现前台秒开
 static NSString *const DKKeyBackgroundAntiJetsamEnabled = @"DYKillerBackgroundAntiJetsamEnabled";
+// [实验性] 非全屏视频与图文自定义背景：0 默认 / 1 优雅深灰(#191919) / 2 视频主色自适应
+static NSString *const DKKeyCustomBackdropColorStyle = @"DYKillerCustomBackdropColorStyle";
 
 #pragma mark - 功能组：调试工具
 

@@ -364,6 +364,9 @@
 @interface AWEFeedStickerContainerView : UIView
 @end
 
+@interface AWEPlayInteractionDescriptionLabel : UILabel
+@end
+
 @interface AWEShellViewController : UIViewController
 @end
 

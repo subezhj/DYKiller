@@ -66,11 +66,140 @@
 
 %end
 
+static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
+    if (!image || !image.CGImage) return nil;
+    CGImageRef cgImage = image.CGImage;
+    size_t width = CGImageGetWidth(cgImage);
+    size_t height = CGImageGetHeight(cgImage);
+    if (width == 0 || height == 0) return nil;
+
+    uint32_t pixels[16 * 16] = {0};
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(pixels, 16, 16, 8, 16 * 4, colorSpace, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+    CGColorSpaceRelease(colorSpace);
+    if (!context) return nil;
+
+    CGContextDrawImage(context, CGRectMake(0, 0, 16, 16), cgImage);
+    CGContextRelease(context);
+
+    uint64_t sumR = 0, sumG = 0, sumB = 0, count = 0;
+    for (int i = 0; i < 256; i++) {
+        uint32_t p = pixels[i];
+        uint8_t r = (p >> 24) & 0xFF;
+        uint8_t g = (p >> 16) & 0xFF;
+        uint8_t b = (p >> 8) & 0xFF;
+        uint8_t a = p & 0xFF;
+        if (a > 30) {
+            sumR += r;
+            sumG += g;
+            sumB += b;
+            count++;
+        }
+    }
+    if (count == 0) return nil;
+
+    CGFloat r = (CGFloat)(sumR / count) / 255.0;
+    CGFloat g = (CGFloat)(sumG / count) / 255.0;
+    CGFloat b = (CGFloat)(sumB / count) / 255.0;
+
+    CGFloat luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (luma < 0.25) {
+        CGFloat factor = 0.28 / MAX(luma, 0.05);
+        r = MIN(r * factor, 1.0);
+        g = MIN(g * factor, 1.0);
+        b = MIN(b * factor, 1.0);
+    }
+    return [UIColor colorWithRed:r green:g blue:b alpha:1.0];
+}
+
+#pragma mark - 4. 非全屏视频与图文自定义背景色 (Custom Backdrop Color)
+
+%hook AWEPlayVideoViewController
+
+- (void)setPlayerBackgroundView:(UIView *)backgroundView {
+    %orig;
+    NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (style == 1) {
+        // 选项 A：优雅石墨深灰 (#191919)
+        UIColor *grey = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
+        backgroundView.backgroundColor = grey;
+    } else if (style == 2) {
+        // 选项 B：视频主色自适应
+        UIImage *cover = nil;
+        if ([self respondsToSelector:@selector(coverImageView)]) {
+            UIImageView *iv = (UIImageView *)[self performSelector:@selector(coverImageView)];
+            if (iv && [iv isKindOfClass:[UIImageView class]]) cover = iv.image;
+        }
+        if (!cover && [self respondsToSelector:@selector(firstFrameImageView)]) {
+            UIImageView *iv = (UIImageView *)[self performSelector:@selector(firstFrameImageView)];
+            if (iv && [iv isKindOfClass:[UIImageView class]]) cover = iv.image;
+        }
+        if (cover) {
+            UIColor *dominant = DKExtractDominantColorFromImage(cover);
+            if (dominant) backgroundView.backgroundColor = dominant;
+        }
+    }
+}
+
+%end
+
+%hook RichContentContainerViewController
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (style == 1) {
+        UIColor *grey = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
+        UIView *listView = self.contentListViewController.viewIfLoaded;
+        if (listView) {
+            listView.backgroundColor = grey;
+            for (UIView *sub in listView.subviews) {
+                if ([NSStringFromClass(sub.class) containsString:@"BackgroundColorView"] ||
+                    [NSStringFromClass(sub.class) containsString:@"DefaultContentCellView"]) {
+                    sub.backgroundColor = grey;
+                }
+            }
+        }
+    }
+}
+
+%end
+
+#pragma mark - 5. 同步 DYYY 文案缩放至“展开”与截断按钮 (Sync Description Truncation Scale)
+
+%hook AWEPlayInteractionDescriptionLabel
+
+- (void)layoutSubviews {
+    %orig;
+    NSString *scaleStr = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionScale"];
+    CGFloat scale = scaleStr.length > 0 ? [scaleStr floatValue] : 1.0;
+    if (scale > 0.0 && fabs(scale - 1.0) > 0.001) {
+        // 递归对所有子视图中的按钮或截断视图应用等比缩放
+        for (UIView *sub in self.subviews) {
+            if ([sub isKindOfClass:[UIButton class]] || [NSStringFromClass(sub.class) containsString:@"Button"] || [NSStringFromClass(sub.class) containsString:@"Expand"]) {
+                if (CGAffineTransformEqualToTransform(sub.transform, CGAffineTransformIdentity)) {
+                    sub.transform = CGAffineTransformMakeScale(scale, scale);
+                }
+            }
+        }
+    }
+}
+
+%end
+
 %end
 
 %ctor {
     %init(DKExperimentalFeaturesGroup);
     
+    DKSettingsRegisterItem(@"新特性与实验性功能", ^AWESettingItemModel *{
+        return DKMakeChoice(
+            DKKeyCustomBackdropColorStyle,
+            @"[实验性] 非全屏自定义背景",
+            @[ @"系统默认", @"优雅深灰 (#191919)", @"视频主色自适应" ]
+        );
+    });
+
     DKSettingsRegisterItem(@"新特性与实验性功能", ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyOptimizeRenderPipeline,
