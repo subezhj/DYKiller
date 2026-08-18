@@ -153,9 +153,14 @@ NSString *DKGetPerformanceMetricsReport(void) {
 
     [report appendString:@"=== Active DYKiller Feature Configuration ===\n"];
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    [report appendFormat:@"DYKillerVideoFullscreen: %d\n", [defaults boolForKey:DKKeyVideoFullscreen]];
+    NSInteger fsMode = [defaults objectForKey:DKKeyVideoFullscreenMode] ? [defaults integerForKey:DKKeyVideoFullscreenMode] : ([defaults boolForKey:DKKeyVideoFullscreen] ? 1 : 0);
+    [report appendFormat:@"DYKillerVideoFullscreenMode: %ld\n", (long)fsMode];
+    [report appendFormat:@"DYKillerCustomBackdropColorStyle: %ld\n", (long)[defaults integerForKey:DKKeyCustomBackdropColorStyle]];
     [report appendFormat:@"DYKillerGlassTabBar: %d\n", [defaults boolForKey:DKKeyGlassTabBar]];
     [report appendFormat:@"DYKillerCommentGlass: %d\n", [defaults boolForKey:DKKeyCommentGlass]];
+    [report appendFormat:@"DYKillerOptimizeRenderPipeline: %d\n", [defaults boolForKey:DKKeyOptimizeRenderPipeline]];
+    [report appendFormat:@"DYKillerProMotionFluidScrollEnabled: %d\n", [defaults boolForKey:DKKeyProMotionFluidScrollEnabled]];
+    [report appendFormat:@"DYKillerBackgroundAntiJetsamEnabled: %d\n", [defaults boolForKey:DKKeyBackgroundAntiJetsamEnabled]];
     [report appendFormat:@"DYKillerMediaIslandEnabled: %d\n", [defaults boolForKey:DKKeyMediaIslandEnabled]];
     [report appendFormat:@"DYKillerLiveActivityIslandEnabled: %d\n", [defaults boolForKey:DKKeyLiveActivityIslandEnabled]];
     [report appendFormat:@"DYKillerPiPQuickLaunchEnabled: %d\n", [defaults boolForKey:DKKeyPiPQuickLaunchEnabled]];

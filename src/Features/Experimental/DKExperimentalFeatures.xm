@@ -148,15 +148,55 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
 - (void)viewDidLayoutSubviews {
     %orig;
     NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (style <= 0) return;
+
+    UIColor *targetColor = nil;
     if (style == 1) {
-        UIColor *grey = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
+        // 优雅石墨深灰 (#191919)
+        targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
+    } else if (style == 2) {
+        // 视频与图文主色自适应
         UIView *listView = self.contentListViewController.viewIfLoaded;
         if (listView) {
-            listView.backgroundColor = grey;
             for (UIView *sub in listView.subviews) {
-                if ([NSStringFromClass(sub.class) containsString:@"BackgroundColorView"] ||
-                    [NSStringFromClass(sub.class) containsString:@"DefaultContentCellView"]) {
-                    sub.backgroundColor = grey;
+                if ([NSStringFromClass(sub.class) containsString:@"ImageContentView"]) {
+                    for (UIView *nested in sub.subviews) {
+                        for (UIView *imgHolder in nested.subviews) {
+                            for (UIView *cand in imgHolder.subviews) {
+                                if ([cand isKindOfClass:[UIImageView class]]) {
+                                    UIImage *img = ((UIImageView *)cand).image;
+                                    if (img) {
+                                        targetColor = DKExtractDominantColorFromImage(img);
+                                        break;
+                                    }
+                                }
+                            }
+                            if (targetColor) break;
+                        }
+                        if (targetColor) break;
+                    }
+                }
+                if (targetColor) break;
+            }
+        }
+    }
+
+    if (targetColor) {
+        UIView *listView = self.contentListViewController.viewIfLoaded;
+        if (listView) {
+            listView.backgroundColor = targetColor;
+            for (UIView *sub in listView.subviews) {
+                NSString *cls = NSStringFromClass(sub.class);
+                if ([cls containsString:@"BackgroundColorView"] ||
+                    [cls containsString:@"DefaultContentCellView"] ||
+                    [cls containsString:@"ImageContentView"]) {
+                    sub.backgroundColor = targetColor;
+                    for (UIView *c in sub.subviews) {
+                        if ([NSStringFromClass(c.class) containsString:@"BackgroundColorView"] ||
+                            [NSStringFromClass(c.class) containsString:@"DefaultContentCellView"]) {
+                            c.backgroundColor = targetColor;
+                        }
+                    }
                 }
             }
         }
