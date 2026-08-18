@@ -246,9 +246,11 @@ static void DKWritePageFiles(DKExportSink *sink,
         }
     }
 
-    // 自动落盘 Hook 诊断日志与 CPU/内存/功耗性能评估报告
+    // 自动落盘 Hook 诊断日志、CPU/内存/功耗性能评估报告与 WiFi/API 网络请求探测日志
     DKWriteString(sink, @"probe/hook_events.txt", DKGetHookLogsText() ?: @"", NO);
     DKWriteString(sink, @"probe/performance.txt", DKGetPerformanceMetricsReport() ?: @"", NO);
+    extern NSString *DKNetworkLoggerReport(void);
+    DKWriteString(sink, @"probe/network_requests.txt", DKNetworkLoggerReport() ?: @"", NO);
 
     if (progress) progress(@"导出本页类头文件...");
     DKWritePageClasses(sink, context.pageClassNames ?: @[]);

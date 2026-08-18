@@ -13,6 +13,8 @@
 @property (nonatomic, copy) NSString *url;
 @property (nonatomic, copy) NSString *method;
 @property (nonatomic, copy) NSString *dateString;
+@property (nonatomic, copy) NSString *paramsSummary;
+@property (nonatomic, copy) NSString *componentTag;
 @property (nonatomic, assign) NSInteger statusCode;
 @end
 
@@ -28,24 +30,52 @@ static NSMutableArray<DKNetworkRequestLog *> *DKGetNetworkLogs(void) {
     return logs;
 }
 
-static void DKAddNetworkLog(NSString *url, NSString *method, NSInteger statusCode) {
+static void DKAddNetworkLogDetailed(NSString *url, NSString *method, id params, NSInteger statusCode) {
     if (!url || url.length == 0) return;
     DKNetworkRequestLog *log = [[DKNetworkRequestLog alloc] init];
     log.url = url;
     log.method = method ?: @"GET";
     log.statusCode = statusCode;
     
+    // 智能标记组件与业务类型（如 feed, sticker, gecko, lynx, ad, live）
+    NSMutableString *tag = [NSMutableString string];
+    if ([url containsString:@"/feed/"]) [tag appendString:@"[FEED_STREAM] "];
+    if ([url containsString:@"gecko"] || [url containsString:@"lynx"]) [tag appendString:@"[LYNX_GECKO] "];
+    if ([url containsString:@"sticker"] || [url containsString:@"widget"]) [tag appendString:@"[STICKER_WIDGET] "];
+    if ([url containsString:@"live"]) [tag appendString:@"[LIVE_ROOM] "];
+    if ([url containsString:@"commerce"] || [url containsString:@"ecom"] || [url containsString:@"ad/"]) [tag appendString:@"[ECOM_AD] "];
+    log.componentTag = tag.length > 0 ? [tag copy] : @"";
+
+    if (params) {
+        if ([params isKindOfClass:[NSDictionary class]]) {
+            NSError *err = nil;
+            NSData *data = [NSJSONSerialization dataWithJSONObject:params options:0 error:&err];
+            if (data) {
+                log.paramsSummary = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+                if (log.paramsSummary.length > 200) {
+                    log.paramsSummary = [[log.paramsSummary substringToIndex:200] stringByAppendingString:@"..."];
+                }
+            }
+        } else if ([params isKindOfClass:[NSString class]]) {
+            log.paramsSummary = (NSString *)params;
+        }
+    }
+    
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    formatter.dateFormat = @"HH:mm:ss";
+    formatter.dateFormat = @"HH:mm:ss.SSS";
     log.dateString = [formatter stringFromDate:[NSDate date]];
     
     NSMutableArray *logs = DKGetNetworkLogs();
     @synchronized (logs) {
-        if (logs.count >= 100) {
+        if (logs.count >= 1000) {
             [logs removeObjectAtIndex:0];
         }
         [logs addObject:log];
     }
+}
+
+static void DKAddNetworkLog(NSString *url, NSString *method, NSInteger statusCode) {
+    DKAddNetworkLogDetailed(url, method, nil, statusCode);
 }
 
 static BOOL DKNetworkLoggerActive(void) {
@@ -67,7 +97,7 @@ static BOOL DKNetworkLoggerActive(void) {
                  autoResume:(BOOL)autoResume
                    callback:(id)callback {
     if (DKNetworkLoggerActive()) {
-        DKAddNetworkLog(url, method, 200);
+        DKAddNetworkLogDetailed(url, method, params, 200);
     }
     return %orig;
 }
@@ -82,7 +112,7 @@ static BOOL DKNetworkLoggerActive(void) {
                       autoResume:(BOOL)autoResume
                         callback:(id)callback {
     if (DKNetworkLoggerActive()) {
-        DKAddNetworkLog(url, method, 200);
+        DKAddNetworkLogDetailed(url, method, params, 200);
     }
     return %orig;
 }
@@ -94,7 +124,7 @@ static BOOL DKNetworkLoggerActive(void) {
                        headerField:(id)headerField
                           callback:(id)callback {
     if (DKNetworkLoggerActive()) {
-        DKAddNetworkLog(url, method, 200);
+        DKAddNetworkLogDetailed(url, method, params, 200);
     }
     return %orig;
 }
@@ -128,13 +158,16 @@ extern "C" {
 NSString *DKNetworkLoggerReport(void) {
     NSMutableArray *logs = DKGetNetworkLogs();
     NSMutableString *outStr = [NSMutableString string];
-    [outStr appendString:@"=== DYKiller API Network Logger Report ===\n"];
+    [outStr appendString:@"=== DYKiller API Network Logger Report (Detailed WiFi & Component Capture) ===\n\n"];
     @synchronized (logs) {
         if (logs.count == 0) {
             [outStr appendString:@"(No network requests captured yet)\n"];
         } else {
             for (DKNetworkRequestLog *log in logs) {
-                [outStr appendFormat:@"[%@] %@ %ld %@\n", log.dateString, log.method, (long)log.statusCode, log.url];
+                [outStr appendFormat:@"[%@] %@ %ld %@%@\n", log.dateString, log.method, (long)log.statusCode, log.componentTag ?: @"", log.url];
+                if (log.paramsSummary.length > 0) {
+                    [outStr appendFormat:@"    Payload/Params: %@\n", log.paramsSummary];
+                }
             }
         }
     }

@@ -218,6 +218,39 @@ static void DKSearchImageAdded(const struct mach_header *header, intptr_t slide)
 
 %end
 
+// 屏蔽视频挂件与拍同款/电商/投票贴纸（不影响正常视频与文案）
+static BOOL DKHideFeedStickersAndWidgetsOn(void) {
+    return DKPrefBool(DKKeyHideFeedStickersAndWidgets);
+}
+
+%hook AWEFeedStickerContainerView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKHideFeedStickersAndWidgetsOn()) {
+        for (UIView *subview in self.subviews) {
+            NSString *cls = NSStringFromClass([subview class]);
+            // 过滤营销挂件、拍同款气泡、电商卡片、投票组件
+            if ([cls containsString:@"Sticker"] || [cls containsString:@"Interact"] || [cls containsString:@"Widget"]) {
+                if (!subview.hidden) subview.hidden = YES;
+            }
+        }
+    }
+}
+
+%end
+
+%hook AWEAwemePlayletWaterMarkView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKHideFeedStickersAndWidgetsOn()) {
+        if (!self.hidden) self.hidden = YES;
+    }
+}
+
+%end
+
 %ctor {
     _dyld_register_func_for_add_image(DKSearchImageAdded);
     dispatch_async(dispatch_get_main_queue(), ^{ DKInstallSearchTrendingHooks(); });
@@ -234,6 +267,13 @@ static void DKSearchImageAdded(const struct mach_header *header, intptr_t slide)
             DKKeyHideSearchRecommend,
             @"屏蔽猜你想搜",
             @"隐藏搜索中间页推荐词区域，不影响搜索输入联想和历史记录"
+        );
+    });
+    DKSettingsRegisterItem(@"净化", ^AWESettingItemModel *{
+        return DKMakeSwitch(
+            DKKeyHideFeedStickersAndWidgets,
+            @"屏蔽视频挂件与拍同款贴纸",
+            @"隐藏视频画面上的营销浮层、拍同款气泡、短剧水印、电商及互动挂件"
         );
     });
 }
