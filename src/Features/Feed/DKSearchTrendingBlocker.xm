@@ -270,7 +270,7 @@ static BOOL DKHideFeedStickersAndWidgetsOn(void) {
             @"隐藏搜索中间页推荐词区域，不影响搜索输入联想和历史记录"
         );
     });
-    DKSettingsRegisterItem(@"净化", ^AWESettingItemModel *{
+    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyHideFeedStickersAndWidgets,
             @"屏蔽视频挂件与拍同款贴纸",

@@ -146,11 +146,12 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 %end
 
+// 1. 主页/全屏营销活动悬浮球与挂件屏蔽
 %hook AWECommercePendantView
 
 - (void)layoutSubviews {
     %orig;
-    if (DKPrefBool(DKKeyBlockMarketingLayers)) {
+    if (DKPrefBool(DKKeyBlockHomePagePendants) || DKPrefBool(DKKeyBlockMarketingLayers)) {
         self.hidden = YES;
         self.frame = CGRectZero;
     }
@@ -158,12 +159,43 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 %end
 
+// 2. 电商带货小黄车与广告落地页卡片屏蔽
 %hook AWECommerceAnchorView
 
 - (void)layoutSubviews {
     %orig;
-    if (DKPrefBool(DKKeyBlockMarketingLayers)) {
+    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers)) {
         self.hidden = YES;
+    }
+}
+
+%end
+
+%hook AWEPOITradeEntryAnchorView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers)) {
+        self.hidden = YES;
+    }
+}
+
+%end
+
+// 3. 冗余 Lynx 动态前端卡片拦截
+%hook UILynxView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKPrefBool(DKKeyBlockLynxComponents)) {
+        // 针对 Feed 流内的营销/广告/非核心 Lynx 卡片做安全隐藏
+        UIView *parent = self.superview;
+        if (parent && ([NSStringFromClass(parent.class) containsString:@"Ad"] ||
+                       [NSStringFromClass(parent.class) containsString:@"Banner"] ||
+                       [NSStringFromClass(parent.class) containsString:@"Commerce"] ||
+                       [NSStringFromClass(parent.class) containsString:@"Sticker"])) {
+            if (!self.hidden) self.hidden = YES;
+        }
     }
 }
 
@@ -172,21 +204,21 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 %hook AWEAwemeModel
 
 - (BOOL)isAd {
-    if (DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
+    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
         return NO;
     }
     return %orig;
 }
 
 - (BOOL)isCommerce {
-    if (DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
+    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
         return NO;
     }
     return %orig;
 }
 
 - (NSInteger)adLinkType {
-    if (DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
+    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
         return 0;
     }
     return %orig;
@@ -198,7 +230,7 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 - (void)setModel:(id)model {
     %orig;
-    if (DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
+    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
         if ([model respondsToSelector:@selector(isAd)] && [(id)model isAd]) {
             self.view.hidden = YES;
         }
@@ -214,18 +246,39 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 %ctor {
     %init(DKJunkResourceBlockerGroup);
-    DKSettingsRegisterItem(@"净化", ^AWESettingItemModel *{
+    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyBlockJunkResources,
-            @"垃圾资源与网络拦截",
-            @"拦截广告推送、监控埋点、活动挂件及垃圾资源联网请求，降低数据流量与后台耗电"
+            @"网络垃圾与埋点拦截",
+            @"拦截广告推送、监控埋点及离线垃圾资源联网请求，降低数据流量与后台耗电"
         );
     });
-    DKSettingsRegisterItem(@"净化", ^AWESettingItemModel *{
+    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
+        return DKMakeSwitch(
+            DKKeyBlockHomePagePendants,
+            @"屏蔽活动营销挂件",
+            @"屏蔽主页及视频画面上的节日活动悬浮球、红包任务挂件与集卡浮窗"
+        );
+    });
+    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
+        return DKMakeSwitch(
+            DKKeyBlockEcommerceMarketing,
+            @"屏蔽电商带货与广告",
+            @"隐藏视频左下角带货小黄车、团购推荐锚点与广告导流卡片"
+        );
+    });
+    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
+        return DKMakeSwitch(
+            DKKeyBlockLynxComponents,
+            @"拦截冗余 Lynx 动态卡片",
+            @"阻止 Feed 流与活动容器加载非必要的 Lynx 动态前端广告与营销模版"
+        );
+    });
+    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyBlockMarketingLayers,
-            @"拦截营销挂件与广告图层",
-            @"屏蔽短剧水文引流、带货黄小鸭浮窗与活动广告挂件（不影响正常视频预加载）"
+            @"拦截短剧引流与水印图层",
+            @"屏蔽短剧水文引流、全屏推广图层与营销背景遮罩（不影响正常视频预加载）"
         );
     });
 }

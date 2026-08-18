@@ -111,10 +111,16 @@ static NSString *const DKKeyHideSearchRecommend = @"DYKillerHideSearchRecommend"
 
 // 拦截广告推送、监控埋点、活动挂件及垃圾资源联网请求。
 static NSString *const DKKeyBlockJunkResources = @"DYKillerBlockJunkResources";
+// 屏蔽主页与全屏营销活动浮窗/悬浮球挂件（如春节/中秋/红包雨/任务挂件）。
+static NSString *const DKKeyBlockHomePagePendants = @"DYKillerBlockHomePagePendants";
+// 屏蔽电商带货与广告营销（带货黄色小黄车/商品卡片/广告落地页/Tetris组件）。
+static NSString *const DKKeyBlockEcommerceMarketing = @"DYKillerBlockEcommerceMarketing";
+// 拦截冗余 Lynx 动态前端卡片（阻止后台下发加载非核心 Lynx 浮层与模板）。
+static NSString *const DKKeyBlockLynxComponents = @"DYKillerBlockLynxComponents";
+// 屏蔽视频挂件与拍同款贴纸（隐藏 Feed 营销卡片、投票与互动贴纸，保留文案与操作栏）。
+static NSString *const DKKeyHideFeedStickersAndWidgets = @"DYKillerHideFeedStickersAndWidgets";
 // 拦截营销挂件、短剧水印、电商与活动浮层图层（不影响正常视频预加载）。
 static NSString *const DKKeyBlockMarketingLayers = @"DYKillerBlockMarketingLayers";
-// 屏蔽视频挂件与拍同款贴纸（隐藏 Feed 营销卡片、电商弹层、投票与互动挂件，保留文案与操作栏）。
-static NSString *const DKKeyHideFeedStickersAndWidgets = @"DYKillerHideFeedStickersAndWidgets";
 // Metal 渲染管道极简优化：剥离渲染层冗余渐变遮罩，提升 GPU 帧合成效率与滑动流畅度。
 static NSString *const DKKeyOptimizeRenderPipeline = @"DYKillerOptimizeRenderPipeline";
 

@@ -280,7 +280,16 @@
 @interface AWECommerceAnchorView : UIView
 @end
 
+@interface AWEPOITradeEntryAnchorView : UIView
+@end
+
 @interface AWECommercePendantView : UIView
+@end
+
+@interface UILynxView : UIView
+@end
+
+@interface BDXLynxView : UIView
 @end
 
 @interface AWEAwemePlayletWaterMarkView : UIView
