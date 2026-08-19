@@ -290,7 +290,14 @@ static void DKAppendViewTreeText(UIView *view, NSUInteger depth, NSMutableString
     NSMutableString *indent = [NSMutableString string];
     for (NSUInteger i = 0; i < depth; i++) [indent appendString:@"  "];
     UIViewController *vc = DKViewControllerForView(view);
-    [out appendFormat:@"%@%@ %@ frame=%@ bounds=%@ vc=%@ %@ hidden=%d alpha=%.3f clips=%d user=%d layer=%@\n",
+    NSString *extraTag = @"";
+    if (view.accessibilityIdentifier.length) {
+        extraTag = [NSString stringWithFormat:@" id=\"%@\"", view.accessibilityIdentifier];
+    }
+    if ([view.accessibilityLabel containsString:@"DKBackdrop"]) {
+        extraTag = [extraTag stringByAppendingString:@" [DKBackdropModified]"];
+    }
+    [out appendFormat:@"%@%@ %@ frame=%@ bounds=%@ vc=%@ %@ hidden=%d alpha=%.3f clips=%d user=%d layer=%@%@\n",
      indent,
      DKClassName(view),
      DKStringFromPointer((__bridge const void *)view),
@@ -302,7 +309,8 @@ static void DKAppendViewTreeText(UIView *view, NSUInteger depth, NSMutableString
      view.alpha,
      view.clipsToBounds,
      view.userInteractionEnabled,
-     DKClassName(view.layer)];
+     DKClassName(view.layer),
+     extraTag];
     for (UIView *subview in view.subviews) DKAppendViewTreeText(subview, depth + 1, out);
 }
 

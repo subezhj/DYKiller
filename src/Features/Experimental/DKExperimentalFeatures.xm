@@ -67,23 +67,24 @@
 %end
 
 static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
-    if (!image || !image.CGImage) return nil;
+    if (!image || !image.CGImage) return [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
     CGImageRef cgImage = image.CGImage;
     size_t width = CGImageGetWidth(cgImage);
     size_t height = CGImageGetHeight(cgImage);
-    if (width == 0 || height == 0) return nil;
+    if (width == 0 || height == 0) return [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
 
-    uint32_t pixels[16 * 16] = {0};
+    // 优化性能：极轻量 8x8 快速采样，杜绝多图滑动卡顿
+    uint32_t pixels[8 * 8] = {0};
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGContextRef context = CGBitmapContextCreate(pixels, 16, 16, 8, 16 * 4, colorSpace, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+    CGContextRef context = CGBitmapContextCreate(pixels, 8, 8, 8, 8 * 4, colorSpace, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
     CGColorSpaceRelease(colorSpace);
-    if (!context) return nil;
+    if (!context) return [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
 
-    CGContextDrawImage(context, CGRectMake(0, 0, 16, 16), cgImage);
+    CGContextDrawImage(context, CGRectMake(0, 0, 8, 8), cgImage);
     CGContextRelease(context);
 
     uint64_t sumR = 0, sumG = 0, sumB = 0, count = 0;
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 64; i++) {
         uint32_t p = pixels[i];
         uint8_t r = (p >> 24) & 0xFF;
         uint8_t g = (p >> 16) & 0xFF;
@@ -96,24 +97,26 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
             count++;
         }
     }
-    if (count == 0) return nil;
+    if (count == 0) return [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
 
     CGFloat r = (CGFloat)(sumR / count) / 255.0;
     CGFloat g = (CGFloat)(sumG / count) / 255.0;
     CGFloat b = (CGFloat)(sumB / count) / 255.0;
 
-    CGFloat luma = 0.299 * r + 0.587 * g + 0.114 * b;
-    if (luma < 0.25) {
-        CGFloat factor = 0.28 / MAX(luma, 0.05);
-        r = MIN(r * factor, 1.0);
-        g = MIN(g * factor, 1.0);
-        b = MIN(b * factor, 1.0);
-    }
-    return [UIColor colorWithRed:r green:g blue:b alpha:1.0];
+    // 柔和高级深色调算法：
+    // 不直接使用原图高饱和艳色，而是将提取到的微弱色相以 20%~25% 的权重轻微混入石墨深灰 (#191919 / #222222)
+    // 既保持与画面的色调一致性（冷色调带微冷灰、暖色调带微暖灰），又彻底杜绝刺眼大红大绿与大面积鲜艳亮色！
+    CGFloat baseGrey = 28.0 / 255.0; // 基础雅致深灰
+    CGFloat blendRatio = 0.22;       // 22% 柔和色调权重
+    CGFloat finalR = (1.0 - blendRatio) * baseGrey + blendRatio * r * 0.45;
+    CGFloat finalG = (1.0 - blendRatio) * baseGrey + blendRatio * g * 0.45;
+    CGFloat finalB = (1.0 - blendRatio) * baseGrey + blendRatio * b * 0.45;
+
+    return [UIColor colorWithRed:finalR green:finalG blue:finalB alpha:1.0];
 }
 
 static UIImage *DKFindImageRecursivelyInView(UIView *view, NSInteger depth) {
-    if (!view || depth > 8) return nil;
+    if (!view || depth > 6) return nil;
     if ([view isKindOfClass:[UIImageView class]]) {
         UIImage *img = ((UIImageView *)view).image;
         if (img && img.size.width > 50 && img.size.height > 50) return img;
@@ -135,6 +138,7 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
         [cls containsString:@"AdapterCellView"] ||
         [cls containsString:@"fullscreenBackgroundView"]) {
         view.backgroundColor = color;
+        view.accessibilityLabel = @"DKBackdropView";
     }
     Class gradientCls = %c(AWEKnowledgeGradientView);
     if ((gradientCls && [view isKindOfClass:gradientCls]) || [cls isEqualToString:@"AWEKnowledgeGradientView"]) {
@@ -143,6 +147,7 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
             gl.colors = @[(id)color.CGColor, (id)color.CGColor];
         }
         view.backgroundColor = color;
+        view.accessibilityLabel = @"DKBackdropGradientView";
     }
     for (UIView *sub in view.subviews) {
         DKApplyBackdropColorRecursively(sub, color, depth + 1);
@@ -160,8 +165,9 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
         // 选项 A：优雅石墨深灰 (#191919)
         UIColor *grey = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
         backgroundView.backgroundColor = grey;
+        backgroundView.accessibilityLabel = @"DKBackdropPlayerView";
     } else if (style == 2) {
-        // 选项 B：视频主色自适应
+        // 选项 B：视频柔和微调主色自适应
         UIImage *cover = nil;
         if ([self respondsToSelector:@selector(coverImageView)]) {
             UIImageView *iv = (UIImageView *)[self performSelector:@selector(coverImageView)];
@@ -173,7 +179,10 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
         }
         if (cover) {
             UIColor *dominant = DKExtractDominantColorFromImage(cover);
-            if (dominant) backgroundView.backgroundColor = dominant;
+            if (dominant) {
+                backgroundView.backgroundColor = dominant;
+                backgroundView.accessibilityLabel = @"DKBackdropPlayerView";
+            }
         }
     }
 }
@@ -192,7 +201,7 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
         // 优雅石墨深灰 (#191919)
         targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
     } else if (style == 2) {
-        // 视频与图文/实况主色自适应
+        // 视频与图文/实况柔和主色自适应
         UIView *listView = self.contentListViewController.viewIfLoaded;
         if (listView) {
             UIImage *foundImg = DKFindImageRecursivelyInView(listView, 0);
