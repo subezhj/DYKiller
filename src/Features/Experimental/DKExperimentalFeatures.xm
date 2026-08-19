@@ -222,6 +222,34 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
 
 %end
 
+%hook UICollectionViewCell
+
+- (void)layoutSubviews {
+    %orig;
+    NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (style <= 0) return;
+
+    NSString *cls = NSStringFromClass(self.class);
+    if ([cls containsString:@"Content"] || [cls containsString:@"LivePhoto"] || [cls containsString:@"Image"] || [cls containsString:@"Adapter"]) {
+        UIColor *targetColor = nil;
+        if (style == 1) {
+            targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
+        } else if (style == 2) {
+            UIImage *img = DKFindImageRecursivelyInView(self, 0);
+            if (img) {
+                targetColor = DKExtractDominantColorFromImage(img);
+            }
+        }
+        if (targetColor) {
+            self.backgroundColor = targetColor;
+            self.contentView.backgroundColor = targetColor;
+            DKApplyBackdropColorRecursively(self, targetColor, 0);
+        }
+    }
+}
+
+%end
+
 #pragma mark - 5. 同步 DYYY 文案缩放至“展开”与同城/团购推荐卡片 (Sync Description & POI Card Style)
 
 %hook AWEPlayInteractionDescriptionLabel
