@@ -156,11 +156,14 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
 
 #pragma mark - 4. 非全屏视频与图文/实况自定义背景色与居中 (Custom Backdrop Color & Centering)
 
-%hook AWEPlayVideoViewController
-
-- (void)setPlayerBackgroundView:(UIView *)backgroundView {
-    %orig;
+static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
+    if (!controller) return;
     NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (style <= 0) return;
+
+    UIView *backgroundView = controller.playerBackgroundView;
+    if (!backgroundView) return;
+
     if (style == 1) {
         // 选项 A：优雅石墨深灰 (#191919)
         UIColor *grey = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
@@ -169,13 +172,19 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
     } else if (style == 2) {
         // 选项 B：视频柔和微调主色自适应
         UIImage *cover = nil;
-        if ([self respondsToSelector:@selector(coverImageView)]) {
-            UIImageView *iv = (UIImageView *)[self performSelector:@selector(coverImageView)];
+        if ([controller respondsToSelector:@selector(coverImageView)]) {
+            UIImageView *iv = (UIImageView *)[controller performSelector:@selector(coverImageView)];
             if (iv && [iv isKindOfClass:[UIImageView class]]) cover = iv.image;
         }
-        if (!cover && [self respondsToSelector:@selector(firstFrameImageView)]) {
-            UIImageView *iv = (UIImageView *)[self performSelector:@selector(firstFrameImageView)];
+        if (!cover && [controller respondsToSelector:@selector(firstFrameImageView)]) {
+            UIImageView *iv = (UIImageView *)[controller performSelector:@selector(firstFrameImageView)];
             if (iv && [iv isKindOfClass:[UIImageView class]]) cover = iv.image;
+        }
+        if (!cover) {
+            UIView *view = controller.viewIfLoaded;
+            if (view) {
+                cover = DKFindImageRecursivelyInView(view, 0);
+            }
         }
         if (cover) {
             UIColor *dominant = DKExtractDominantColorFromImage(cover);
@@ -185,6 +194,18 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
             }
         }
     }
+}
+
+%hook AWEPlayVideoViewController
+
+- (void)setPlayerBackgroundView:(UIView *)backgroundView {
+    %orig;
+    DKApplyVideoBackdropColor(self);
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    DKApplyVideoBackdropColor(self);
 }
 
 %end
@@ -230,7 +251,14 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
     if (style <= 0) return;
 
     NSString *cls = NSStringFromClass(self.class);
-    if ([cls containsString:@"Content"] || [cls containsString:@"LivePhoto"] || [cls containsString:@"Image"] || [cls containsString:@"Adapter"]) {
+    // 严格排除评论区、搜索卡片等其它 CollectionViewCell，仅限图文/实况专用 Cell
+    if ([cls containsString:@"Comment"] || [cls containsString:@"Header"] || [cls containsString:@"Footer"] || [cls containsString:@"TabContent"]) {
+        return;
+    }
+
+    if ([cls containsString:@"ImageContentAdapterCellView"] ||
+        [cls containsString:@"LivePhotoContentAdapterCellView"] ||
+        [cls containsString:@"DefaultContentCellView"]) {
         UIColor *targetColor = nil;
         if (style == 1) {
             targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
