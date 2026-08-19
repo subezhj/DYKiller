@@ -149,6 +149,12 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
         view.backgroundColor = color;
         view.accessibilityLabel = @"DKBackdropGradientView";
     }
+    // 隐藏贴底黑色渐变压暗层（AWEGradientView），避免与自适应背景色产生二次混合造成底部色差与灰条，同时降低 GPU 混合渲染图层开销
+    if ([cls isEqualToString:@"AWEGradientView"] || [cls containsString:@"AWEGradientView"]) {
+        if (CGRectGetMinY(view.frame) > 400.0 || CGRectGetHeight(view.bounds) > 200.0) {
+            view.hidden = YES;
+        }
+    }
     for (UIView *sub in view.subviews) {
         DKApplyBackdropColorRecursively(sub, color, depth + 1);
     }
