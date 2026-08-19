@@ -112,7 +112,43 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
     return [UIColor colorWithRed:r green:g blue:b alpha:1.0];
 }
 
-#pragma mark - 4. 非全屏视频与图文自定义背景色 (Custom Backdrop Color)
+static UIImage *DKFindImageRecursivelyInView(UIView *view, NSInteger depth) {
+    if (!view || depth > 8) return nil;
+    if ([view isKindOfClass:[UIImageView class]]) {
+        UIImage *img = ((UIImageView *)view).image;
+        if (img && img.size.width > 50 && img.size.height > 50) return img;
+    }
+    for (UIView *sub in view.subviews) {
+        UIImage *cand = DKFindImageRecursivelyInView(sub, depth + 1);
+        if (cand) return cand;
+    }
+    return nil;
+}
+
+static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInteger depth) {
+    if (!view || !color || depth > 8) return;
+    NSString *cls = NSStringFromClass(view.class);
+    if ([cls containsString:@"BackgroundColorView"] ||
+        [cls containsString:@"DefaultContentCellView"] ||
+        [cls containsString:@"ImageContentView"] ||
+        [cls containsString:@"LivePhoto"] ||
+        [cls containsString:@"AdapterCellView"] ||
+        [cls containsString:@"fullscreenBackgroundView"]) {
+        view.backgroundColor = color;
+    }
+    if ([view isKindOfClass:[AWEKnowledgeGradientView class]] || [cls isEqualToString:@"AWEKnowledgeGradientView"]) {
+        if ([view.layer isKindOfClass:[CAGradientLayer class]]) {
+            CAGradientLayer *gl = (CAGradientLayer *)view.layer;
+            gl.colors = @[(id)color.CGColor, (id)color.CGColor];
+        }
+        view.backgroundColor = color;
+    }
+    for (UIView *sub in view.subviews) {
+        DKApplyBackdropColorRecursively(sub, color, depth + 1);
+    }
+}
+
+#pragma mark - 4. 非全屏视频与图文/实况自定义背景色 (Custom Backdrop Color)
 
 %hook AWEPlayVideoViewController
 
@@ -155,28 +191,12 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
         // 优雅石墨深灰 (#191919)
         targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
     } else if (style == 2) {
-        // 视频与图文主色自适应
+        // 视频与图文/实况主色自适应
         UIView *listView = self.contentListViewController.viewIfLoaded;
         if (listView) {
-            for (UIView *sub in listView.subviews) {
-                if ([NSStringFromClass(sub.class) containsString:@"ImageContentView"]) {
-                    for (UIView *nested in sub.subviews) {
-                        for (UIView *imgHolder in nested.subviews) {
-                            for (UIView *cand in imgHolder.subviews) {
-                                if ([cand isKindOfClass:[UIImageView class]]) {
-                                    UIImage *img = ((UIImageView *)cand).image;
-                                    if (img) {
-                                        targetColor = DKExtractDominantColorFromImage(img);
-                                        break;
-                                    }
-                                }
-                            }
-                            if (targetColor) break;
-                        }
-                        if (targetColor) break;
-                    }
-                }
-                if (targetColor) break;
+            UIImage *foundImg = DKFindImageRecursivelyInView(listView, 0);
+            if (foundImg) {
+                targetColor = DKExtractDominantColorFromImage(foundImg);
             }
         }
     }
@@ -185,20 +205,7 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
         UIView *listView = self.contentListViewController.viewIfLoaded;
         if (listView) {
             listView.backgroundColor = targetColor;
-            for (UIView *sub in listView.subviews) {
-                NSString *cls = NSStringFromClass(sub.class);
-                if ([cls containsString:@"BackgroundColorView"] ||
-                    [cls containsString:@"DefaultContentCellView"] ||
-                    [cls containsString:@"ImageContentView"]) {
-                    sub.backgroundColor = targetColor;
-                    for (UIView *c in sub.subviews) {
-                        if ([NSStringFromClass(c.class) containsString:@"BackgroundColorView"] ||
-                            [NSStringFromClass(c.class) containsString:@"DefaultContentCellView"]) {
-                            c.backgroundColor = targetColor;
-                        }
-                    }
-                }
-            }
+            DKApplyBackdropColorRecursively(listView, targetColor, 0);
         }
     }
 }
