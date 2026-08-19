@@ -147,10 +147,14 @@ CGRect DKVideoFeedTableAdjustFrame(UITableView *table, CGRect frame) {
 - (void)setFrame:(CGRect)frame {
     if (DKVideoFullscreenOn()) {
         CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
-        if (screenHeight > 0 && frame.size.height > 0) {
-            CGFloat remainder = fmod(frame.size.height, screenHeight);
-            if (remainder != 0) {
-                frame.size.height += (screenHeight - remainder);
+        if (screenHeight > 0 && frame.size.height > 0 && self.superview) {
+            CGFloat superHeight = CGRectGetHeight(self.superview.bounds);
+            // 仅在被外层容器限制且存在非满高截断时才扩展，避免对独立卡片或短剧中心子容器造成递归重排
+            if (superHeight >= screenHeight - kDKFeedTolerance) {
+                CGFloat remainder = fmod(frame.size.height, screenHeight);
+                if (remainder > kDKFeedTolerance && fabs(frame.size.height - superHeight) > kDKFeedTolerance) {
+                    frame.size.height = superHeight;
+                }
             }
         }
     }
