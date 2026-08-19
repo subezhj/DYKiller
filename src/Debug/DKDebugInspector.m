@@ -244,13 +244,13 @@ static void DKEnsureDebugWindow(void) {
     [super viewDidLoad];
 
     self.wrenchButton = [UIButton buttonWithType:UIButtonTypeCustom];
-    self.wrenchButton.frame = CGRectMake(0, 0, 48, 48);
-    self.wrenchButton.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.82];
+    self.wrenchButton.frame = CGRectMake(0, 0, 36, 36);
+    self.wrenchButton.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.75];
     self.wrenchButton.tintColor = UIColor.whiteColor;
-    self.wrenchButton.layer.cornerRadius = 24;
+    self.wrenchButton.layer.cornerRadius = 18;
     self.wrenchButton.layer.shadowColor = UIColor.blackColor.CGColor;
-    self.wrenchButton.layer.shadowOpacity = 0.24;
-    self.wrenchButton.layer.shadowRadius = 8;
+    self.wrenchButton.layer.shadowOpacity = 0.20;
+    self.wrenchButton.layer.shadowRadius = 6;
     self.wrenchButton.layer.shadowOffset = CGSizeMake(0, 2);
     self.wrenchButton.accessibilityLabel = @"DYKiller Debug";
 
@@ -265,12 +265,19 @@ static void DKEnsureDebugWindow(void) {
     [self.wrenchButton addGestureRecognizer:pan];
 
     UIImage *image = nil;
-    if ([UIImage respondsToSelector:@selector(systemImageNamed:)]) image = [UIImage systemImageNamed:@"wrench.fill"];
+    if ([UIImage respondsToSelector:@selector(systemImageNamed:)]) {
+        if (@available(iOS 13.0, *)) {
+            UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightMedium];
+            image = [UIImage systemImageNamed:@"wrench.fill" withConfiguration:config];
+        } else {
+            image = [UIImage systemImageNamed:@"wrench.fill"];
+        }
+    }
     if (image) {
         [self.wrenchButton setImage:image forState:UIControlStateNormal];
     } else {
         [self.wrenchButton setTitle:@"W" forState:UIControlStateNormal];
-        self.wrenchButton.titleLabel.font = [UIFont boldSystemFontOfSize:20];
+        self.wrenchButton.titleLabel.font = [UIFont boldSystemFontOfSize:15];
     }
 
     [[NSNotificationCenter defaultCenter] addObserver:self
@@ -537,6 +544,13 @@ BOOL DKToggleFLEXExplorer(void) {
         BOOL newStatus = !netLoggerOn;
         [[NSUserDefaults standardUserDefaults] setBool:newStatus forKey:DKKeyNetworkLoggerEnabled];
         [[NSUserDefaults standardUserDefaults] synchronize];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"🚫 关闭并隐藏调试钥匙"
+                                              style:UIAlertActionStyleDestructive
+                                            handler:^(__unused UIAlertAction *action) {
+        [[NSUserDefaults standardUserDefaults] setBool:NO forKey:DKKeyDebugInspectorEnabled];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        DKDebugInspectorRefreshOverlay();
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
     if (alert.popoverPresentationController) {
