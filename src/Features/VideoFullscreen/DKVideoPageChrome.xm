@@ -1202,6 +1202,24 @@ static void DKEnhanceVideoBottomGradient(UIView *view) {
         }
     }
 
+    // ② 图文/实况新列表控制器下的 AWEGradientView（贴底压暗层），跟随全屏自动延展至屏幕满高
+    if (DKVideoFullscreenOn() && !merge) {
+        UIView *parent = self.superview;
+        if (parent && CGRectGetMinY(self.frame) > 100.0) {
+            CGFloat full = DKFullCellHeight(self);
+            if (full <= 0.0) {
+                full = [UIScreen mainScreen].bounds.size.height;
+            }
+            CGFloat top = CGRectGetMinY(self.frame);
+            if (full > CGRectGetMaxY(self.frame) + kDKSignatureTolerance) {
+                if (DKApplyVerticalStretch(self, &kDKVideoGradientTransformKey, top, full)) {
+                    [gDKManagedVisualViews addObject:self];
+                    return;
+                }
+            }
+        }
+    }
+
     DKRestoreTransformBaseline(self, &kDKVideoGradientTransformKey);
 }
 
