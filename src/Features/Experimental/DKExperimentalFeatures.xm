@@ -136,7 +136,8 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
         [cls containsString:@"fullscreenBackgroundView"]) {
         view.backgroundColor = color;
     }
-    if ([view isKindOfClass:[AWEKnowledgeGradientView class]] || [cls isEqualToString:@"AWEKnowledgeGradientView"]) {
+    Class gradientCls = %c(AWEKnowledgeGradientView);
+    if ((gradientCls && [view isKindOfClass:gradientCls]) || [cls isEqualToString:@"AWEKnowledgeGradientView"]) {
         if ([view.layer isKindOfClass:[CAGradientLayer class]]) {
             CAGradientLayer *gl = (CAGradientLayer *)view.layer;
             gl.colors = @[(id)color.CGColor, (id)color.CGColor];
@@ -148,7 +149,7 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
     }
 }
 
-#pragma mark - 4. 非全屏视频与图文/实况自定义背景色 (Custom Backdrop Color)
+#pragma mark - 4. 非全屏视频与图文/实况自定义背景色与居中 (Custom Backdrop Color & Centering)
 
 %hook AWEPlayVideoViewController
 
@@ -212,7 +213,7 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
 
 %end
 
-#pragma mark - 5. 同步 DYYY 文案缩放至“展开”与截断按钮 (Sync Description Truncation Scale)
+#pragma mark - 5. 同步 DYYY 文案缩放至“展开”与同城/团购推荐卡片 (Sync Description & POI Card Style)
 
 %hook AWEPlayInteractionDescriptionLabel
 
@@ -234,6 +235,35 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
 
 %end
 
+%hook UIView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKPrefBool(DKKeyPOICommentStyleUnified)) {
+        NSString *cls = NSStringFromClass(self.class);
+        if ([cls containsString:@"POICommentCard"] || [cls containsString:@"POIRatingList"] || [cls containsString:@"POIAnchor"]) {
+            NSString *descColorHex = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionColor"];
+            NSString *scaleStr = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionScale"];
+            CGFloat scale = scaleStr.length > 0 ? [scaleStr floatValue] : 1.0;
+            if (scale > 0.0 && fabs(scale - 1.0) > 0.001) {
+                if (CGAffineTransformEqualToTransform(self.transform, CGAffineTransformIdentity)) {
+                    self.transform = CGAffineTransformMakeScale(scale, scale);
+                }
+            }
+            if (descColorHex.length > 0) {
+                for (UIView *sub in self.subviews) {
+                    if ([sub isKindOfClass:[UILabel class]]) {
+                        // 统一跟随 DYYY 文案排版风格
+                        ((UILabel *)sub).alpha = 0.95;
+                    }
+                }
+            }
+        }
+    }
+}
+
+%end
+
 %end
 
 %ctor {
@@ -244,6 +274,14 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
             DKKeyCustomBackdropColorStyle,
             @"[实验性] 非全屏自定义背景",
             @[ @"系统默认", @"优雅深灰 (#191919)", @"视频主色自适应" ]
+        );
+    });
+
+    DKSettingsRegisterItem(@"新特性与实验性功能", ^AWESettingItemModel *{
+        return DKMakeSwitch(
+            DKKeyPOICommentStyleUnified,
+            @"[实验性] 团购/POI推荐文案与DYYY统一",
+            @"自动将同城团购、大家都在说及店铺推荐卡片的文字排版与缩放同步为 DYYY 样式"
         );
     });
 

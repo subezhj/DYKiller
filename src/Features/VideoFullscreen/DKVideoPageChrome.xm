@@ -384,12 +384,13 @@ static void DKApplyMode2AspectFit(UIView *playerView) {
     if (DKIsUnderRichContent(self)) return;
     DKSyncBackdrop(self, self.viewIfLoaded, DKPlayerBackdropColor(self));
 
-    if (DKPrefBool(DKKeyOptimizeRenderPipeline) || DKPrefBool(DKKeyZenFeedUIEnabled)) {
+    if (DKPrefBool(DKKeyOptimizeRenderPipeline) || DKPrefBool(DKKeyZenFeedUIEnabled) || DKVideoFullscreenOn()) {
         UIView *view = self.viewIfLoaded;
         if (view) {
             for (UIView *sub in view.subviews) {
                 NSString *cls = NSStringFromClass(sub.class);
                 if ([cls isEqualToString:@"AWEGradientView"] ||
+                    ([sub isKindOfClass:[UIImageView class]] && CGRectGetHeight(sub.bounds) < 250.0 && CGRectGetMinY(sub.frame) > 500.0) ||
                     (DKPrefBool(DKKeyZenFeedUIEnabled) &&
                      ([cls isEqualToString:@"AWEAwemePlayVideoPauseIcon"] ||
                       [cls isEqualToString:@"AWEAwemePlayletWaterMarkView"]))) {

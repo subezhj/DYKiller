@@ -141,6 +141,8 @@ static NSString *const DKKeyProMotionFluidScrollEnabled = @"DYKillerProMotionFlu
 static NSString *const DKKeyBackgroundAntiJetsamEnabled = @"DYKillerBackgroundAntiJetsamEnabled";
 // [实验性] 非全屏视频与图文自定义背景：0 默认 / 1 优雅深灰(#191919) / 2 视频主色自适应
 static NSString *const DKKeyCustomBackdropColorStyle = @"DYKillerCustomBackdropColorStyle";
+// [实验性] 同城/团购推荐文案与 DYYY 样式统一：自动统一 POI 推荐卡片及评价文案的排版与颜色
+static NSString *const DKKeyPOICommentStyleUnified = @"DYKillerPOICommentStyleUnified";
 
 #pragma mark - 功能组：调试工具
 
