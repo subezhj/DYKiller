@@ -128,6 +128,33 @@ static UIImage *DKFindImageRecursivelyInView(UIView *view, NSInteger depth) {
     return nil;
 }
 
+static BOOL DKIsDouyinAlreadyCustomColored(UIColor *color) {
+    if (!color) return NO;
+    CGFloat r = 0, g = 0, b = 0, a = 0;
+    if (![color getRed:&r green:&g blue:&b alpha:&a]) return NO;
+    if (a < 0.1) return NO;
+    // 如果非纯黑/非深黑底色（亮度或三色通道有显著氛围色彩，即抖音官方已经给出了定制氛围背景），则判定抖音已变色
+    CGFloat luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    return (luma > 0.12 && (fabs(r - g) > 0.03 || fabs(g - b) > 0.03 || luma > 0.20));
+}
+
+static BOOL DKKnowledgeGradientHasNativeColor(UIView *view) {
+    if (!view) return NO;
+    if ([view.layer isKindOfClass:[CAGradientLayer class]]) {
+        CAGradientLayer *gl = (CAGradientLayer *)view.layer;
+        NSArray *colors = gl.colors;
+        if (colors.count > 0) {
+            for (id colorRef in colors) {
+                UIColor *c = [UIColor colorWithCGColor:(__bridge CGColorRef)colorRef];
+                if (DKIsDouyinAlreadyCustomColored(c)) {
+                    return YES;
+                }
+            }
+        }
+    }
+    return NO;
+}
+
 static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInteger depth) {
     if (!view || !color || depth > 8) return;
     NSString *cls = NSStringFromClass(view.class);
@@ -142,12 +169,15 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
     }
     Class gradientCls = %c(AWEKnowledgeGradientView);
     if ((gradientCls && [view isKindOfClass:gradientCls]) || [cls isEqualToString:@"AWEKnowledgeGradientView"]) {
-        if ([view.layer isKindOfClass:[CAGradientLayer class]]) {
-            CAGradientLayer *gl = (CAGradientLayer *)view.layer;
-            gl.colors = @[(id)color.CGColor, (id)color.CGColor];
+        // 仅当抖音自身没有绘制有效氛围色时，才由插件接管替换渐变色
+        if (!DKKnowledgeGradientHasNativeColor(view)) {
+            if ([view.layer isKindOfClass:[CAGradientLayer class]]) {
+                CAGradientLayer *gl = (CAGradientLayer *)view.layer;
+                gl.colors = @[(id)color.CGColor, (id)color.CGColor];
+            }
+            view.backgroundColor = color;
+            view.accessibilityLabel = @"DKBackdropGradientView";
         }
-        view.backgroundColor = color;
-        view.accessibilityLabel = @"DKBackdropGradientView";
     }
     // 隐藏贴底黑色渐变压暗层（AWEGradientView），避免与自适应背景色产生二次混合造成底部色差与灰条，同时降低 GPU 混合渲染图层开销
     if ([cls isEqualToString:@"AWEGradientView"] || [cls containsString:@"AWEGradientView"]) {
@@ -162,49 +192,6 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
 
 #pragma mark - 4. 非全屏视频与图文/实况自定义背景色与居中 (Custom Backdrop Color & Centering)
 
-// ─── 纯黑色判断工具 ───────────────────────────────────────────────────────────
-// 返回 YES 表示颜色接近纯黑（R/G/B 均 < 0.12，即约 30/255）
-static BOOL DKColorIsNearBlack(UIColor *color) {
-    if (!color) return NO;
-    CGFloat r = 0, g = 0, b = 0, a = 0;
-    if (![color getRed:&r green:&g blue:&b alpha:&a]) {
-        // 可能是灰度色
-        CGFloat w = 0;
-        if ([color getWhite:&w alpha:&a]) {
-            return w < 0.12 && a > 0.5;
-        }
-        return NO;
-    }
-    return (r < 0.12 && g < 0.12 && b < 0.12 && a > 0.5);
-}
-
-// ─── 目标视图类名白名单 ────────────────────────────────────────────────────────
-// 只拦截已知与视频/图文背景相关的视图，避免误伤其他黑色 UI
-static BOOL DKIsBackdropTargetClass(NSString *cls) {
-    if (!cls) return NO;
-    // 视频播放器背景
-    if ([cls containsString:@"playerBackgroundView"]) return YES;
-    // 图文/实况背景层
-    if ([cls containsString:@"BackgroundColorView"]) return YES;
-    if ([cls containsString:@"DefaultContentCellView"]) return YES;
-    if ([cls containsString:@"ImageContentView"]) return YES;
-    if ([cls containsString:@"LivePhotoContent"]) return YES;
-    if ([cls containsString:@"AdapterCellView"]) return YES;
-    if ([cls containsString:@"fullscreenBackgroundView"]) return YES;
-    if ([cls containsString:@"KnowledgeGradient"]) return YES;
-    // 视频控制器根 view 背景
-    if ([cls containsString:@"AWEPlayVideoViewController"]) return YES;
-    if ([cls containsString:@"RichContentContainer"]) return YES;
-    return NO;
-}
-
-// ─── 从图文/实况 Cell 取图并提取主色 ──────────────────────────────────────────
-static UIColor *DKExtractColorFromView(UIView *view) {
-    UIImage *img = DKFindImageRecursivelyInView(view, 0);
-    if (img) return DKExtractDominantColorFromImage(img);
-    return nil;
-}
-
 static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
     if (!controller) return;
     NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
@@ -213,15 +200,18 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
     UIView *backgroundView = controller.playerBackgroundView;
     if (!backgroundView) return;
 
-    // 检查：如果当前颜色已经是非黑色（抖音自己设置过），我们不覆盖
-    UIColor *current = backgroundView.backgroundColor;
-    if (current && !DKColorIsNearBlack(current)) return;
+    // 如果抖音原生已经绘制了氛围色彩，则我们不干预，直接放行
+    if (backgroundView.backgroundColor && DKIsDouyinAlreadyCustomColored(backgroundView.backgroundColor)) {
+        return;
+    }
 
     if (style == 1) {
+        // 选项 A：优雅石墨深灰 (#191919)
         UIColor *grey = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
         backgroundView.backgroundColor = grey;
         backgroundView.accessibilityLabel = @"DKBackdropPlayerView";
     } else if (style == 2) {
+        // 选项 B：视频柔和微调主色自适应
         UIImage *cover = nil;
         if ([controller respondsToSelector:@selector(coverImageView)]) {
             UIImageView *iv = (UIImageView *)[controller performSelector:@selector(coverImageView)];
@@ -233,7 +223,9 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
         }
         if (!cover) {
             UIView *view = controller.viewIfLoaded;
-            if (view) cover = DKFindImageRecursivelyInView(view, 0);
+            if (view) {
+                cover = DKFindImageRecursivelyInView(view, 0);
+            }
         }
         if (cover) {
             UIColor *dominant = DKExtractDominantColorFromImage(cover);
@@ -259,62 +251,6 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
 
 %end
 
-// ─── 核心拦截器：hook UIView.setBackgroundColor: ───────────────────────────────
-// 当任何目标背景视图尝试设置纯黑色时，我们在同一调用链内直接替换成自定义色
-// 这样无论抖音在什么时序写黑色，我们都能在同帧内覆盖，彻底消除时序竞争
-%hook UIView
-
-- (void)setBackgroundColor:(UIColor *)color {
-    NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
-    if (style > 0 && DKColorIsNearBlack(color)) {
-        NSString *cls = NSStringFromClass(self.class);
-        if (DKIsBackdropTargetClass(cls)) {
-            UIColor *replacement = nil;
-            if (style == 1) {
-                replacement = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
-            } else if (style == 2) {
-                // 尝试从自身或父视图找图并提取主色；找不到则用 #191919 兜底
-                UIColor *extracted = DKExtractColorFromView(self);
-                if (!extracted && self.superview) extracted = DKExtractColorFromView(self.superview);
-                replacement = extracted ?: [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
-            }
-            if (replacement) {
-                %orig(replacement);
-                self.accessibilityLabel = @"DKBackdropIntercepted";
-                return;
-            }
-        }
-    }
-    %orig;
-}
-
-- (void)layoutSubviews {
-    %orig;
-    if (DKPrefBool(DKKeyPOICommentStyleUnified)) {
-        NSString *cls = NSStringFromClass(self.class);
-        if ([cls containsString:@"POICommentCard"] || [cls containsString:@"POIRatingList"] || [cls containsString:@"POIAnchor"]) {
-            NSString *descColorHex = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionColor"];
-            NSString *scaleStr = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionScale"];
-            CGFloat scale = scaleStr.length > 0 ? [scaleStr floatValue] : 1.0;
-            if (scale > 0.0 && fabs(scale - 1.0) > 0.001) {
-                if (CGAffineTransformEqualToTransform(self.transform, CGAffineTransformIdentity)) {
-                    self.transform = CGAffineTransformMakeScale(scale, scale);
-                }
-            }
-            if (descColorHex.length > 0) {
-                for (UIView *sub in self.subviews) {
-                    if ([sub isKindOfClass:[UILabel class]]) {
-                        ((UILabel *)sub).alpha = 0.95;
-                    }
-                }
-            }
-        }
-    }
-}
-
-%end
-
-
 %hook RichContentContainerViewController
 
 - (void)viewDidLayoutSubviews {
@@ -322,27 +258,34 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
     NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
     if (style <= 0) return;
 
+    UIView *listView = self.contentListViewController.viewIfLoaded;
+    if (!listView) return;
+
+    // 检查抖音是否本身已给图文设置了原生色彩渐变
+    Class gradientCls = %c(AWEKnowledgeGradientView);
+    for (UIView *sub in listView.subviews) {
+        if ((gradientCls && [sub isKindOfClass:gradientCls]) || [NSStringFromClass(sub.class) isEqualToString:@"AWEKnowledgeGradientView"]) {
+            if (DKKnowledgeGradientHasNativeColor(sub)) {
+                return; // 抖音原生已变色，不干预！
+            }
+        }
+    }
+
     UIColor *targetColor = nil;
     if (style == 1) {
         // 优雅石墨深灰 (#191919)
         targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
     } else if (style == 2) {
         // 视频与图文/实况柔和主色自适应
-        UIView *listView = self.contentListViewController.viewIfLoaded;
-        if (listView) {
-            UIImage *foundImg = DKFindImageRecursivelyInView(listView, 0);
-            if (foundImg) {
-                targetColor = DKExtractDominantColorFromImage(foundImg);
-            }
+        UIImage *foundImg = DKFindImageRecursivelyInView(listView, 0);
+        if (foundImg) {
+            targetColor = DKExtractDominantColorFromImage(foundImg);
         }
     }
 
     if (targetColor) {
-        UIView *listView = self.contentListViewController.viewIfLoaded;
-        if (listView) {
-            listView.backgroundColor = targetColor;
-            DKApplyBackdropColorRecursively(listView, targetColor, 0);
-        }
+        listView.backgroundColor = targetColor;
+        DKApplyBackdropColorRecursively(listView, targetColor, 0);
     }
 }
 
@@ -364,6 +307,17 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
     if ([cls containsString:@"ImageContentAdapterCellView"] ||
         [cls containsString:@"LivePhotoContentAdapterCellView"] ||
         [cls containsString:@"DefaultContentCellView"]) {
+        
+        // 检查自身是否已经包含抖音原生有效渐变
+        Class gradientCls = %c(AWEKnowledgeGradientView);
+        for (UIView *sub in self.subviews) {
+            if ((gradientCls && [sub isKindOfClass:gradientCls]) || [NSStringFromClass(sub.class) isEqualToString:@"AWEKnowledgeGradientView"]) {
+                if (DKKnowledgeGradientHasNativeColor(sub)) {
+                    return; // 抖音原生已变色，不干预！
+                }
+            }
+        }
+
         UIColor *targetColor = nil;
         if (style == 1) {
             targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
@@ -397,6 +351,35 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
             if ([sub isKindOfClass:[UIButton class]] || [NSStringFromClass(sub.class) containsString:@"Button"] || [NSStringFromClass(sub.class) containsString:@"Expand"]) {
                 if (CGAffineTransformEqualToTransform(sub.transform, CGAffineTransformIdentity)) {
                     sub.transform = CGAffineTransformMakeScale(scale, scale);
+                }
+            }
+        }
+    }
+}
+
+%end
+
+%hook UIView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKPrefBool(DKKeyPOICommentStyleUnified)) {
+        NSString *cls = NSStringFromClass(self.class);
+        if ([cls containsString:@"POICommentCard"] || [cls containsString:@"POIRatingList"] || [cls containsString:@"POIAnchor"]) {
+            NSString *descColorHex = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionColor"];
+            NSString *scaleStr = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionScale"];
+            CGFloat scale = scaleStr.length > 0 ? [scaleStr floatValue] : 1.0;
+            if (scale > 0.0 && fabs(scale - 1.0) > 0.001) {
+                if (CGAffineTransformEqualToTransform(self.transform, CGAffineTransformIdentity)) {
+                    self.transform = CGAffineTransformMakeScale(scale, scale);
+                }
+            }
+            if (descColorHex.length > 0) {
+                for (UIView *sub in self.subviews) {
+                    if ([sub isKindOfClass:[UILabel class]]) {
+                        // 统一跟随 DYYY 文案排版风格
+                        ((UILabel *)sub).alpha = 0.95;
+                    }
                 }
             }
         }
