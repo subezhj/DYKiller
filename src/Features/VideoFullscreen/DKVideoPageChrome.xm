@@ -214,17 +214,17 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
     size_t height = CGImageGetHeight(cgImage);
     if (width == 0 || height == 0) return nil;
 
-    uint32_t pixels[16 * 16] = {0};
+    uint32_t pixels[8 * 8] = {0};
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGContextRef context = CGBitmapContextCreate(pixels, 16, 16, 8, 16 * 4, colorSpace, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+    CGContextRef context = CGBitmapContextCreate(pixels, 8, 8, 8, 8 * 4, colorSpace, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
     CGColorSpaceRelease(colorSpace);
     if (!context) return nil;
 
-    CGContextDrawImage(context, CGRectMake(0, 0, 16, 16), cgImage);
+    CGContextDrawImage(context, CGRectMake(0, 0, 8, 8), cgImage);
     CGContextRelease(context);
 
     uint64_t sumR = 0, sumG = 0, sumB = 0, count = 0;
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 64; i++) {
         uint32_t p = pixels[i];
         uint8_t r = (p >> 24) & 0xFF;
         uint8_t g = (p >> 16) & 0xFF;
@@ -243,14 +243,17 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
     CGFloat g = (CGFloat)(sumG / count) / 255.0;
     CGFloat b = (CGFloat)(sumB / count) / 255.0;
 
-    CGFloat luma = 0.299 * r + 0.587 * g + 0.114 * b;
-    if (luma < 0.25) {
-        CGFloat factor = 0.28 / MAX(luma, 0.05);
-        r = MIN(r * factor, 1.0);
-        g = MIN(g * factor, 1.0);
-        b = MIN(b * factor, 1.0);
+    // 抖音官方质感深色调自适应算法：
+    UIColor *rawColor = [UIColor colorWithRed:r green:g blue:b alpha:1.0];
+    CGFloat hue = 0, sat = 0, bri = 0, alp = 0;
+    if ([rawColor getHue:&hue saturation:&sat brightness:&bri alpha:&alp]) {
+        CGFloat clampedSat = MIN(sat * 0.25, 0.12); // 饱和度严格钳制在 12% 以内
+        CGFloat clampedBri = 0.11 + 0.03 * MIN(bri, 1.0); // 亮度钳制在 11%~14% 高级石墨深灰
+        return [UIColor colorWithHue:hue saturation:clampedSat brightness:clampedBri alpha:1.0];
     }
-    return [UIColor colorWithRed:r green:g blue:b alpha:1.0];
+
+    CGFloat baseGrey = 26.0 / 255.0;
+    return [UIColor colorWithRed:baseGrey green:baseGrey blue:baseGrey alpha:1.0];
 }
 
 static UIColor *DKExtractFallbackColorFromController(AWEPlayVideoViewController *controller) {

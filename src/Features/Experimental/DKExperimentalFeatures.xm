@@ -229,11 +229,10 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
         return;
     }
 
+    UIColor *targetColor = nil;
     if (style == 1) {
         // 选项 A：优雅石墨深灰 (#191919)
-        UIColor *grey = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
-        backgroundView.backgroundColor = grey;
-        backgroundView.accessibilityLabel = @"DKBackdropPlayerView";
+        targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
     } else if (style == 2) {
         // 选项 B：视频柔和微调主色自适应
         UIImage *cover = nil;
@@ -252,10 +251,28 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
             }
         }
         if (cover) {
-            UIColor *dominant = DKExtractDominantColorFromImage(cover);
-            if (dominant) {
-                backgroundView.backgroundColor = dominant;
-                backgroundView.accessibilityLabel = @"DKBackdropPlayerView";
+            targetColor = DKExtractDominantColorFromImage(cover);
+        }
+    }
+
+    if (targetColor) {
+        backgroundView.backgroundColor = targetColor;
+        backgroundView.accessibilityLabel = @"DKBackdropPlayerView";
+
+        // 隐藏视频控制器内部贴底的 280pt 黑色压暗遮罩（AWEGradientView），防止与自适应背景叠加产生底部黑条
+        UIView *rootView = controller.viewIfLoaded;
+        if (rootView) {
+            for (UIView *sub in rootView.subviews) {
+                if ([sub isKindOfClass:[UIView class]]) {
+                    for (UIView *child in sub.subviews) {
+                        NSString *cCls = NSStringFromClass(child.class);
+                        if ([cCls isEqualToString:@"AWEGradientView"] || [cCls containsString:@"AWEGradientView"]) {
+                            if (CGRectGetMinY(child.frame) > 400.0 || CGRectGetHeight(child.bounds) > 200.0) {
+                                child.hidden = YES;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
