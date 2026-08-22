@@ -516,6 +516,35 @@ static void DKProbeAppendFrozenMedia(NSMutableString *out) {
             [out appendFormat:@"  达标？           = %@\n",
              CGRectIsNull(target) ? @"—"
                 : (DKRectsClose(node.frame, target) ? @"是" : @"否（被缩放或平移）")];
+
+            // 背景色与取色诊断
+            UIViewController *vc = (UIViewController *)node.nextResponder;
+            if ([vc respondsToSelector:@selector(playerViewController)]) {
+                UIViewController *playVC = (UIViewController *)[vc performSelector:@selector(playerViewController)];
+                if (playVC) {
+                    UIView *bgView = [playVC respondsToSelector:@selector(playerBackgroundView)] ? (UIView *)[playVC performSelector:@selector(playerBackgroundView)] : nil;
+                    UIColor *bgCol = bgView ? bgView.backgroundColor : nil;
+                    [out appendFormat:@"  播放器背景View  = %@ (hidden=%d, alpha=%.2f)\n", DKProbeDesc(bgView), bgView ? bgView.hidden : -1, bgView ? bgView.alpha : 0.0];
+                    [out appendFormat:@"  当前背景色彩    = %@\n", DKProbeColorDesc(bgCol)];
+                    
+                    // 检测抖音原生是否自带取色
+                    BOOL isNativeColored = NO;
+                    if (bgCol) {
+                        CGFloat r = 0, g = 0, b = 0, a = 0;
+                        if ([bgCol getRed:&r green:&g blue:&b alpha:&a] && a >= 0.1) {
+                            CGFloat luma = 0.299 * r + 0.587 * g + 0.114 * b;
+                            if (luma > 0.12 && (fabs(r - g) > 0.03 || fabs(g - b) > 0.03 || luma > 0.20)) {
+                                isNativeColored = YES;
+                            }
+                        }
+                    }
+                    [out appendFormat:@"  抖音原生有取色？= %@\n", isNativeColored ? @"是（官方自绘氛围色）" : @"否（纯黑留白/未取色）"];
+                    
+                    NSInteger customStyle = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+                    NSString *styleDesc = (customStyle == 1) ? @"优雅石墨深灰(#191919)" : ((customStyle == 2) ? @"主色自适应" : @"关闭");
+                    [out appendFormat:@"  插件背景配置    = %@ (style=%ld)\n", styleDesc, (long)customStyle];
+                }
+            }
             continue;
         }
         [queue addObjectsFromArray:node.subviews];
