@@ -364,6 +364,9 @@
 @interface AWEFeedStickerContainerView : UIView
 @end
 
+@interface AWERichAwemeLifeCardImageDescView : UIView
+@end
+
 @interface AWEShellViewController : UIViewController
 @end
 
