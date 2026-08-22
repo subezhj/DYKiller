@@ -103,16 +103,21 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
     CGFloat g = (CGFloat)(sumG / count) / 255.0;
     CGFloat b = (CGFloat)(sumB / count) / 255.0;
 
-    // 柔和高级深色调算法：
-    // 不直接使用原图高饱和艳色，而是将提取到的微弱色相以 20%~25% 的权重轻微混入石墨深灰 (#191919 / #222222)
-    // 既保持与画面的色调一致性（冷色调带微冷灰、暖色调带微暖灰），又彻底杜绝刺眼大红大绿与大面积鲜艳亮色！
-    CGFloat baseGrey = 28.0 / 255.0; // 基础雅致深灰
-    CGFloat blendRatio = 0.22;       // 22% 柔和色调权重
-    CGFloat finalR = (1.0 - blendRatio) * baseGrey + blendRatio * r * 0.45;
-    CGFloat finalG = (1.0 - blendRatio) * baseGrey + blendRatio * g * 0.45;
-    CGFloat finalB = (1.0 - blendRatio) * baseGrey + blendRatio * b * 0.45;
+    // 抖音官方质感深色调自适应算法：
+    // 抖音官方氛围色核心：极低饱和度、极低对比度、高雅深沉石墨基底，绝不产生刺眼大红/大紫或亮色
+    // 1. 转 HSB 色彩空间严格钳制饱和度 (Saturation) 在 0.12 以内，保持画面的微弱冷暖色相
+    // 2. 亮度 (Brightness) 钳制在 0.10 ~ 0.14 之间（类似 #18191C ~ #202226）
+    UIColor *rawColor = [UIColor colorWithRed:r green:g blue:b alpha:1.0];
+    CGFloat hue = 0, sat = 0, bri = 0, alp = 0;
+    if ([rawColor getHue:&hue saturation:&sat brightness:&bri alpha:&alp]) {
+        CGFloat clampedSat = MIN(sat * 0.25, 0.12); // 将饱和度压缩到 12% 以下，彻底杜绝发红发艳
+        CGFloat clampedBri = 0.11 + 0.03 * MIN(bri, 1.0); // 维持在 11%~14% 极具高级感的深灰底
+        return [UIColor colorWithHue:hue saturation:clampedSat brightness:clampedBri alpha:1.0];
+    }
 
-    return [UIColor colorWithRed:finalR green:finalG blue:finalB alpha:1.0];
+    // 兜底微混
+    CGFloat baseGrey = 26.0 / 255.0;
+    return [UIColor colorWithRed:baseGrey green:baseGrey blue:baseGrey alpha:1.0];
 }
 
 static UIImage *DKFindImageRecursivelyInView(UIView *view, NSInteger depth) {
@@ -163,6 +168,12 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
         [cls containsString:@"fullscreenBackgroundView"]) {
         view.backgroundColor = color;
         view.accessibilityLabel = @"DKBackdropView";
+    }
+    // 隐藏实况照片内部贴底的 280pt 黑色压暗层（AWEGradientView），消除图片底部与上方的色差黑块
+    if ([cls isEqualToString:@"AWEGradientView"] || [cls containsString:@"AWEGradientView"]) {
+        if (CGRectGetMinY(view.frame) > 400.0 || CGRectGetHeight(view.bounds) > 200.0) {
+            view.hidden = YES;
+        }
     }
     for (UIView *sub in view.subviews) {
         DKApplyBackdropColorRecursively(sub, color, depth + 1);
