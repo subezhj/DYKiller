@@ -178,7 +178,8 @@ CGRect DKVideoContainerTargetFrame(UIView *view) {
         return CGRectMake(0.0, 0.0, width, height);
     }
 
-    if (DKVideoGeometryOn()
+    NSInteger customBackdrop = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if ((DKVideoGeometryOn() || customBackdrop > 0)
         && DKMergeCanCoverScreen((AWEDPlayerViewController_Merge *)view.nextResponder)) {
         CGFloat full = DKFullCellHeight(view);
         if (full > height) height = full;

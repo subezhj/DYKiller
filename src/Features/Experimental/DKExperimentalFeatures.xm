@@ -318,65 +318,6 @@ static BOOL DKIsHorizontalVideo(AWEPlayVideoViewController *controller) {
 
 %end
 
-// 覆盖所有非全屏多图文与实况照片 Cell
-%hook UICollectionViewCell
-
-- (void)layoutSubviews {
-    %orig;
-    NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
-    if (style <= 0) return;
-
-    NSString *cls = NSStringFromClass(self.class);
-    // 严格排除评论区、搜索卡片、Tab等无关 CollectionViewCell
-    if ([cls containsString:@"Comment"] || [cls containsString:@"Header"] || [cls containsString:@"Footer"] || [cls containsString:@"TabContent"]) {
-        return;
-    }
-
-    // 精确命中图文与实况适配器 Cell
-    if ([cls containsString:@"ImageContentAdapterCellView"] ||
-        [cls containsString:@"LivePhotoContentAdapterCellView"] ||
-        [cls containsString:@"DefaultContentCellView"] ||
-        [cls containsString:@"LivePhoto"]) {
-
-        // 优先检查祖先或自身是否包含抖音官方原生设置的有效渐变背景色
-        UIColor *nativeColor = nil;
-        Class gradientCls = %c(AWEKnowledgeGradientView);
-        for (UIView *sub in self.subviews) {
-            if ((gradientCls && [sub isKindOfClass:gradientCls]) || [NSStringFromClass(sub.class) isEqualToString:@"AWEKnowledgeGradientView"]) {
-                nativeColor = DKKnowledgeGradientNativeColor(sub);
-                if (nativeColor) break;
-            }
-        }
-        if (!nativeColor && self.superview) {
-            for (UIView *sub in self.superview.subviews) {
-                if ((gradientCls && [sub isKindOfClass:gradientCls]) || [NSStringFromClass(sub.class) isEqualToString:@"AWEKnowledgeGradientView"]) {
-                    nativeColor = DKKnowledgeGradientNativeColor(sub);
-                    if (nativeColor) break;
-                }
-            }
-        }
-
-        UIColor *targetColor = nil;
-        if (nativeColor) {
-            // 抖音官方自带氛围渐变：100% 继承并打通官方渐变末色，消除内部 Cell 遮挡与黑底
-            targetColor = nativeColor;
-        } else if (style == 1) {
-            targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
-        } else if (style == 2) {
-            UIImage *img = DKFindImageRecursivelyInView(self, 0);
-            if (img) {
-                targetColor = DKExtractDominantColorFromImage(img);
-            }
-        }
-
-        if (targetColor) {
-            self.backgroundColor = targetColor;
-            self.contentView.backgroundColor = targetColor;
-            DKApplyBackdropColorRecursively(self, targetColor, 0);
-        }
-    }
-}
-
 %end
 
 #pragma mark - 5. 同步 DYYY 文案缩放与排版至图文标题与同城/团购推荐卡片 (Sync Description & Rich Aweme Text Style)
