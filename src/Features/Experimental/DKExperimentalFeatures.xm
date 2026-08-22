@@ -246,92 +246,6 @@ static BOOL DKIsHorizontalVideo(AWEPlayVideoViewController *controller) {
     return NO;
 }
 
-static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
-    if (!controller) return;
-    NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
-    if (style <= 0) return;
-
-    // 严格限制：只对纯横屏视频（有上下黑边的视频）生效！普通竖屏全屏视频绝不干预
-    if (!DKIsHorizontalVideo(controller)) {
-        return;
-    }
-
-    UIView *backgroundView = controller.playerBackgroundView;
-    if (!backgroundView) {
-        UIView *view = controller.viewIfLoaded;
-        if (view) {
-            backgroundView = [[UIView alloc] initWithFrame:view.bounds];
-            backgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-            [view insertSubview:backgroundView atIndex:0];
-            if ([controller respondsToSelector:@selector(setPlayerBackgroundView:)]) {
-                [controller performSelector:@selector(setPlayerBackgroundView:) withObject:backgroundView];
-            }
-        }
-    }
-    if (!backgroundView) return;
-
-    // 如果抖音原生已经绘制了氛围色彩，则直接继承该色彩打通全屏，不强制覆盖
-    if (backgroundView.backgroundColor && DKIsDouyinAlreadyCustomColored(backgroundView.backgroundColor)) {
-        UIColor *native = backgroundView.backgroundColor;
-        UIView *canvas = controller.viewIfLoaded;
-        if (canvas) {
-            canvas.backgroundColor = native;
-            for (UIView *ancestor = canvas.superview; ancestor; ancestor = ancestor.superview) {
-                if ([NSStringFromClass(ancestor.class) containsString:@"Cell"] || [NSStringFromClass(ancestor.class) containsString:@"ContentView"]) {
-                    ancestor.backgroundColor = native;
-                    break;
-                }
-            }
-            DKHideVideoGradientsRecursively(canvas, 0);
-        }
-        return;
-    }
-
-    UIColor *targetColor = nil;
-    if (style == 1) {
-        // 选项 A：优雅石墨深灰 (#191919)
-        targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
-    } else if (style == 2) {
-        // 选项 B：视频柔和微调主色自适应
-        UIImage *cover = nil;
-        if ([controller respondsToSelector:@selector(coverImageView)]) {
-            UIImageView *iv = (UIImageView *)[controller performSelector:@selector(coverImageView)];
-            if (iv && [iv isKindOfClass:[UIImageView class]]) cover = iv.image;
-        }
-        if (!cover && [controller respondsToSelector:@selector(firstFrameImageView)]) {
-            UIImageView *iv = (UIImageView *)[controller performSelector:@selector(firstFrameImageView)];
-            if (iv && [iv isKindOfClass:[UIImageView class]]) cover = iv.image;
-        }
-        if (!cover) {
-            UIView *view = controller.viewIfLoaded;
-            if (view) {
-                cover = DKFindImageRecursivelyInView(view, 0);
-            }
-        }
-        if (cover) {
-            targetColor = DKExtractDominantColorFromImage(cover);
-        }
-    }
-
-    if (targetColor) {
-        backgroundView.backgroundColor = targetColor;
-        backgroundView.accessibilityLabel = @"DKBackdropPlayerView";
-
-        // 同步给祖先 contentView/Cell，防止播放器底边与底栏之间的间隙露出纯黑底
-        UIView *canvas = controller.viewIfLoaded;
-        if (canvas) {
-            canvas.backgroundColor = targetColor;
-            for (UIView *ancestor = canvas.superview; ancestor; ancestor = ancestor.superview) {
-                if ([NSStringFromClass(ancestor.class) containsString:@"Cell"] || [NSStringFromClass(ancestor.class) containsString:@"ContentView"]) {
-                    ancestor.backgroundColor = targetColor;
-                    break;
-                }
-            }
-            // 彻底递归隐藏视频控制器内部所有贴底的黑色压暗遮罩（AWEGradientView）
-            DKHideVideoGradientsRecursively(canvas, 0);
-        }
-    }
-}
 
 %hook AWEAwemeModel
 
@@ -391,14 +305,15 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
 
 %hook AWEPlayVideoViewController
 
-- (void)setPlayerBackgroundView:(UIView *)backgroundView {
-    %orig;
-    DKApplyVideoBackdropColor(self);
-}
-
 - (void)viewDidLayoutSubviews {
     %orig;
-    DKApplyVideoBackdropColor(self);
+    NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (style > 0) {
+        UIView *canvas = self.viewIfLoaded;
+        if (canvas) {
+            DKHideVideoGradientsRecursively(canvas, 0);
+        }
+    }
 }
 
 %end
