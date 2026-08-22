@@ -288,17 +288,20 @@ static UIColor *DKExtractFallbackColorFromController(AWEPlayVideoViewController 
     if (extracted && !DKIsDarkOrBlackColor(extracted)) {
         return extracted;
     }
-
-    return [UIColor colorWithRed:0.12 green:0.15 blue:0.22 alpha:1.0];
+    return [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
 }
 
 static UIColor *DKPlayerBackdropColor(AWEPlayVideoViewController *controller) {
+    NSInteger customStyle = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (customStyle == 1) {
+        return [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
+    }
+
     UIView *backdrop = controller.playerBackgroundView;
     UIColor *color = (backdrop.superview && !backdrop.hidden) ? backdrop.backgroundColor : nil;
 
-    // 如果开启了「非全屏自定义背景」或全屏模式 2
-    NSInteger customStyle = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
-    if (customStyle > 0 || DKVideoFullscreenModeValue() == 2) {
+    // 如果开启了「主色自适应」或全屏模式 2
+    if (customStyle == 2 || DKVideoFullscreenModeValue() == 2) {
         if (DKIsDarkOrBlackColor(color)) {
             UIColor *fallback = DKExtractFallbackColorFromController(controller);
             if (fallback) {
