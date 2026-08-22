@@ -333,6 +333,62 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
     }
 }
 
+%hook AWEAwemeModel
+
+- (NSUInteger)awe_playerBackgroundViewShowType {
+    // 1. 如果 DYYY 已经配置了背景色，DYKiller 主动让出控制权，直接走原逻辑/DYYY逻辑
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYVideoBGColor"]) {
+        return %orig;
+    }
+    
+    // 2. 如果 DYKiller 开启了自定义背景色，激活抖音官方内置的 playerBackgroundView 渲染管线
+    NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (style > 0) {
+        return 1;
+    }
+    return %orig;
+}
+
+- (UIColor *)awe_smartBackgroundColor {
+    // 1. 如果 DYYY 已经配置了背景色，DYKiller 主动让出控制权
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYVideoBGColor"]) {
+        return %orig;
+    }
+
+    // 2. 如果 DYKiller 开启了自定义背景色，使用官方通道返回背景颜色
+    NSInteger style = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (style == 1) {
+        // 选项 1：优雅石墨深灰 (#191919)
+        return [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
+    } else if (style == 2) {
+        // 选项 2：主色自适应
+        // 优先检查原生是否已有色彩
+        UIColor *origColor = %orig;
+        if (origColor && DKIsDouyinAlreadyCustomColored(origColor)) {
+            return origColor;
+        }
+        // 如果原生未取色，提取封面主色
+        UIImage *cover = nil;
+        id video = [self respondsToSelector:@selector(video)] ? [self performSelector:@selector(video)] : nil;
+        if (video && [video respondsToSelector:@selector(coverModel)]) {
+            id coverModel = [video performSelector:@selector(coverModel)];
+            // 尝试通过已缓存的图片提取
+            if (coverModel && [coverModel respondsToSelector:@selector(image)]) {
+                cover = (UIImage *)[coverModel performSelector:@selector(image)];
+            }
+        }
+        if (cover) {
+            UIColor *extracted = DKExtractDominantColorFromImage(cover);
+            if (extracted) return extracted;
+        }
+        // 兜底返回深灰
+        return [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
+    }
+    return %orig;
+}
+
+%end
+
 %hook AWEPlayVideoViewController
 
 - (void)setPlayerBackgroundView:(UIView *)backgroundView {

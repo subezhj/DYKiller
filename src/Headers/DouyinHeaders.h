@@ -37,6 +37,8 @@
 @property (nonatomic, assign) BOOL isAd;
 @property (nonatomic, assign) BOOL isCommerce;
 @property (nonatomic, assign) NSInteger adLinkType;
+- (NSUInteger)awe_playerBackgroundViewShowType;
+- (UIColor *)awe_smartBackgroundColor;
 @end
 
 @interface AWEFeedCellViewController : UIViewController
