@@ -318,8 +318,6 @@ static BOOL DKIsHorizontalVideo(AWEPlayVideoViewController *controller) {
 
 %end
 
-%end
-
 #pragma mark - 5. 同步 DYYY 文案缩放与排版至图文标题与同城/团购推荐卡片 (Sync Description & Rich Aweme Text Style)
 
 %hook AWEPlayInteractionDescriptionLabel
