@@ -290,14 +290,13 @@ static UIColor *DKExtractFallbackColorFromController(AWEPlayVideoViewController 
     return [UIColor colorWithRed:0.12 green:0.15 blue:0.22 alpha:1.0];
 }
 
-// 抖音把横屏智能背景色画在 playerBackgroundView 上；该色在首帧渲染出图后才算出来，
-// 因此同步点必须是抖音自己落色的时刻，而不是 setModel:/setFrame: 这类首帧之前的入口。
-// 仅当背景层确实挂在视图树上并可见时才算「抖音画了背景」，避免跟随已摘除的残留层。
 static UIColor *DKPlayerBackdropColor(AWEPlayVideoViewController *controller) {
     UIView *backdrop = controller.playerBackgroundView;
     UIColor *color = (backdrop.superview && !backdrop.hidden) ? backdrop.backgroundColor : nil;
 
-    if (DKVideoFullscreenModeValue() == 2) {
+    // 如果开启了「非全屏自定义背景」或全屏模式 2
+    NSInteger customStyle = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (customStyle > 0 || DKVideoFullscreenModeValue() == 2) {
         if (DKIsDarkOrBlackColor(color)) {
             UIColor *fallback = DKExtractFallbackColorFromController(controller);
             if (fallback) {

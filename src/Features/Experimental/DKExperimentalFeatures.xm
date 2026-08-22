@@ -267,6 +267,17 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
         backgroundView.backgroundColor = targetColor;
         backgroundView.accessibilityLabel = @"DKBackdropPlayerView";
 
+        // 同步给祖先 contentView/Cell，防止播放器底边与底栏之间的间隙露出纯黑底
+        UIView *canvas = controller.viewIfLoaded;
+        if (canvas) {
+            for (UIView *ancestor = canvas.superview; ancestor; ancestor = ancestor.superview) {
+                if ([NSStringFromClass(ancestor.class) containsString:@"Cell"] || [NSStringFromClass(ancestor.class) containsString:@"ContentView"]) {
+                    ancestor.backgroundColor = targetColor;
+                    break;
+                }
+            }
+        }
+
         // 隐藏视频控制器内部贴底的 280pt 黑色压暗遮罩（AWEGradientView），防止与自适应背景叠加产生底部黑条
         UIView *rootView = controller.viewIfLoaded;
         if (rootView) {
