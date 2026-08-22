@@ -257,10 +257,33 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
     }
 
     UIView *backgroundView = controller.playerBackgroundView;
+    if (!backgroundView) {
+        UIView *view = controller.viewIfLoaded;
+        if (view) {
+            backgroundView = [[UIView alloc] initWithFrame:view.bounds];
+            backgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+            [view insertSubview:backgroundView atIndex:0];
+            if ([controller respondsToSelector:@selector(setPlayerBackgroundView:)]) {
+                [controller performSelector:@selector(setPlayerBackgroundView:) withObject:backgroundView];
+            }
+        }
+    }
     if (!backgroundView) return;
 
-    // 如果抖音原生已经绘制了氛围色彩，则我们不干预，直接放行
+    // 如果抖音原生已经绘制了氛围色彩，则直接继承该色彩打通全屏，不强制覆盖
     if (backgroundView.backgroundColor && DKIsDouyinAlreadyCustomColored(backgroundView.backgroundColor)) {
+        UIColor *native = backgroundView.backgroundColor;
+        UIView *canvas = controller.viewIfLoaded;
+        if (canvas) {
+            canvas.backgroundColor = native;
+            for (UIView *ancestor = canvas.superview; ancestor; ancestor = ancestor.superview) {
+                if ([NSStringFromClass(ancestor.class) containsString:@"Cell"] || [NSStringFromClass(ancestor.class) containsString:@"ContentView"]) {
+                    ancestor.backgroundColor = native;
+                    break;
+                }
+            }
+            DKHideVideoGradientsRecursively(canvas, 0);
+        }
         return;
     }
 
