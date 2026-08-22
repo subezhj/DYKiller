@@ -174,10 +174,12 @@ static void DKRestoreBackdrop(UIView *anchor, UIView *except) {
 // AWEKnowledgeGradientView 自身高度（见下方），不取样另涂。
 static void DKSyncBackdrop(id owner, UIView *anchor, UIColor *color) {
     BOOL applied = objc_getAssociatedObject(owner, &kDKBackdropAppliedKey) != nil;
-    // 绝大多数内容没有原生背景，这里直接退出，不做任何链式遍历。
-    if (!anchor || (!color && !applied)) return;
+    NSInteger customStyle = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    
+    // 如果既没有颜色，又没有接管过，直接退出
+    if (!anchor || (!color && !applied && customStyle <= 0)) return;
 
-    UIView *canvas = (color && DKVideoFullscreenOn()) ? DKBackdropCanvas(anchor) : nil;
+    UIView *canvas = ((color && (DKVideoFullscreenOn() || customStyle > 0))) ? DKBackdropCanvas(anchor) : nil;
 
     DKRestoreBackdrop(anchor, canvas);
     if (!canvas) {
