@@ -302,7 +302,7 @@ static UIColor *DKPlayerBackdropColor(AWEPlayVideoViewController *controller) {
 
     // 如果开启了「主色自适应」或全屏模式 2
     if (customStyle == 2 || DKVideoFullscreenModeValue() == 2) {
-        if (DKIsDarkOrBlackColor(color)) {
+        if (!color || DKIsDarkOrBlackColor(color)) {
             UIColor *fallback = DKExtractFallbackColorFromController(controller);
             if (fallback) {
                 color = fallback;
