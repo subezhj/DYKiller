@@ -182,17 +182,32 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 %end
 
-// 3. 冗余 Lynx 动态前端卡片拦截
+// 3. 图文同城生活卡片与团购推荐条屏蔽 (Rich Aweme Life Card)
+%hook AWERichAwemeLifeCardImageDescView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers)) {
+        self.hidden = YES;
+        self.frame = CGRectZero;
+    }
+}
+
+%end
+
+// 4. 冗余 Lynx 动态前端卡片与多图文团购卡片拦截
 %hook UILynxView
 
 - (void)layoutSubviews {
     %orig;
-    if (DKPrefBool(DKKeyBlockLynxComponents)) {
-        // 针对 Feed 流内的营销/广告/非核心 Lynx 卡片做安全隐藏
+    if (DKPrefBool(DKKeyBlockLynxComponents) || DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers)) {
+        // 针对 Feed 流及图文内的营销/广告/团购/非核心 Lynx 卡片做安全隐藏
         UIView *parent = self.superview;
         if (parent && ([NSStringFromClass(parent.class) containsString:@"Ad"] ||
                        [NSStringFromClass(parent.class) containsString:@"Banner"] ||
                        [NSStringFromClass(parent.class) containsString:@"Commerce"] ||
+                       [NSStringFromClass(parent.class) containsString:@"Life"] ||
+                       [NSStringFromClass(parent.class) containsString:@"LynxContent"] ||
                        [NSStringFromClass(parent.class) containsString:@"Sticker"])) {
             if (!self.hidden) self.hidden = YES;
         }

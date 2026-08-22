@@ -372,7 +372,7 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
 
 %end
 
-#pragma mark - 5. 同步 DYYY 文案缩放至“展开”与同城/团购推荐卡片 (Sync Description & POI Card Style)
+#pragma mark - 5. 同步 DYYY 文案缩放与排版至图文标题与同城/团购推荐卡片 (Sync Description & Rich Aweme Text Style)
 
 %hook AWEPlayInteractionDescriptionLabel
 
@@ -394,27 +394,31 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
 
 %end
 
+// 针对图文作品标题/文案及同城卡片做 DYYY 字体缩放与颜色统一
 %hook UIView
 
 - (void)layoutSubviews {
     %orig;
-    if (DKPrefBool(DKKeyPOICommentStyleUnified)) {
-        NSString *cls = NSStringFromClass(self.class);
-        if ([cls containsString:@"POICommentCard"] || [cls containsString:@"POIRatingList"] || [cls containsString:@"POIAnchor"]) {
-            NSString *descColorHex = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionColor"];
-            NSString *scaleStr = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionScale"];
-            CGFloat scale = scaleStr.length > 0 ? [scaleStr floatValue] : 1.0;
-            if (scale > 0.0 && fabs(scale - 1.0) > 0.001) {
-                if (CGAffineTransformEqualToTransform(self.transform, CGAffineTransformIdentity)) {
-                    self.transform = CGAffineTransformMakeScale(scale, scale);
-                }
+    NSString *cls = NSStringFromClass(self.class);
+    if ([cls containsString:@"AWERichAwemeLifeCard"] ||
+        [cls containsString:@"POICommentCard"] ||
+        [cls containsString:@"POIRatingList"] ||
+        [cls containsString:@"POIAnchor"] ||
+        [cls containsString:@"AWERichAwemeLifeCardImageDescView"]) {
+
+        NSString *scaleStr = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionScale"];
+        CGFloat scale = scaleStr.length > 0 ? [scaleStr floatValue] : 1.0;
+        if (scale > 0.0 && fabs(scale - 1.0) > 0.001) {
+            if (CGAffineTransformEqualToTransform(self.transform, CGAffineTransformIdentity)) {
+                self.transform = CGAffineTransformMakeScale(scale, scale);
             }
-            if (descColorHex.length > 0) {
-                for (UIView *sub in self.subviews) {
-                    if ([sub isKindOfClass:[UILabel class]]) {
-                        // 统一跟随 DYYY 文案排版风格
-                        ((UILabel *)sub).alpha = 0.95;
-                    }
+        }
+
+        NSString *descColorHex = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionColor"];
+        if (descColorHex.length > 0) {
+            for (UIView *sub in self.subviews) {
+                if ([sub isKindOfClass:[UILabel class]]) {
+                    ((UILabel *)sub).alpha = 0.95;
                 }
             }
         }
