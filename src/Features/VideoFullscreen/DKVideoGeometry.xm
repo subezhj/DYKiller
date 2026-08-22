@@ -231,9 +231,8 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
 %hook UIView
 
 - (void)setFrame:(CGRect)frame {
-    // 两个几何功能都关闭时，这是全 App 最热的 UIKit 路径；直接放行，
-    // 不取 nextResponder、不做 runtime 类判断。
-    if (!DKVideoFullscreenOn() && !DKCommentFreezeOn()) {
+    NSInteger customBackdrop = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (!DKVideoFullscreenOn() && !DKCommentFreezeOn() && customBackdrop <= 0) {
         %orig;
         return;
     }
