@@ -1182,6 +1182,15 @@ static void DKEnhanceVideoBottomGradient(UIView *view) {
 - (void)layoutSubviews {
     %orig;
 
+    // 如果开启了「非全屏自定义背景」，且当前渐变属于贴底压暗层（minY > 400 或 height > 200），强制隐藏防暗块断层
+    NSInteger customStyle = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
+    if (customStyle > 0) {
+        if (CGRectGetMinY(self.frame) > 400.0 || CGRectGetHeight(self.bounds) > 200.0) {
+            self.hidden = YES;
+            return;
+        }
+    }
+
     AWEDPlayerViewController_Merge *merge = DKMergeForView(self);
     if (merge) DKEnhanceVideoBottomGradient(self);
 
