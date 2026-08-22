@@ -104,19 +104,19 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
     CGFloat b = (CGFloat)(sumB / count) / 255.0;
 
     // 抖音官方质感深色调自适应算法：
-    // 抖音官方氛围色核心：极低饱和度、极低对比度、高雅深沉石墨基底，绝不产生刺眼大红/大紫或亮色
-    // 1. 转 HSB 色彩空间严格钳制饱和度 (Saturation) 在 0.12 以内，保持画面的微弱冷暖色相
-    // 2. 亮度 (Brightness) 钳制在 0.10 ~ 0.14 之间（类似 #18191C ~ #202226）
+    // 1. 保留画面的主体色相 (Hue)
+    // 2. 饱和度 (Saturation) 范围放宽至 0.28 ~ 0.45，让绿色、暖色等画面主色调更加鲜明清晰
+    // 3. 亮度 (Brightness) 调整在 0.14 ~ 0.22 之间，呈现纯正深色氛围底色
     UIColor *rawColor = [UIColor colorWithRed:r green:g blue:b alpha:1.0];
     CGFloat hue = 0, sat = 0, bri = 0, alp = 0;
     if ([rawColor getHue:&hue saturation:&sat brightness:&bri alpha:&alp]) {
-        CGFloat clampedSat = MIN(sat * 0.25, 0.12); // 将饱和度压缩到 12% 以下，彻底杜绝发红发艳
-        CGFloat clampedBri = 0.11 + 0.03 * MIN(bri, 1.0); // 维持在 11%~14% 极具高级感的深灰底
+        CGFloat clampedSat = MAX(0.20, MIN(sat * 0.75, 0.45)); // 保持适中饱和度，让自适应色彩鲜活可辨
+        CGFloat clampedBri = 0.14 + 0.08 * MIN(bri, 1.0);      // 亮度维持在 14%~22% 的高级深色调区间
         return [UIColor colorWithHue:hue saturation:clampedSat brightness:clampedBri alpha:1.0];
     }
 
     // 兜底微混
-    CGFloat baseGrey = 26.0 / 255.0;
+    CGFloat baseGrey = 35.0 / 255.0;
     return [UIColor colorWithRed:baseGrey green:baseGrey blue:baseGrey alpha:1.0];
 }
 

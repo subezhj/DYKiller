@@ -249,12 +249,12 @@ static UIColor *DKExtractDominantColorFromImage(UIImage *image) {
     UIColor *rawColor = [UIColor colorWithRed:r green:g blue:b alpha:1.0];
     CGFloat hue = 0, sat = 0, bri = 0, alp = 0;
     if ([rawColor getHue:&hue saturation:&sat brightness:&bri alpha:&alp]) {
-        CGFloat clampedSat = MIN(sat * 0.25, 0.12); // 饱和度严格钳制在 12% 以内
-        CGFloat clampedBri = 0.11 + 0.03 * MIN(bri, 1.0); // 亮度钳制在 11%~14% 高级石墨深灰
+        CGFloat clampedSat = MAX(0.20, MIN(sat * 0.75, 0.45)); // 保持适中饱和度，让自适应色彩鲜活可辨
+        CGFloat clampedBri = 0.14 + 0.08 * MIN(bri, 1.0);      // 亮度维持在 14%~22% 的高级深色调区间
         return [UIColor colorWithHue:hue saturation:clampedSat brightness:clampedBri alpha:1.0];
     }
 
-    CGFloat baseGrey = 26.0 / 255.0;
+    CGFloat baseGrey = 35.0 / 255.0;
     return [UIColor colorWithRed:baseGrey green:baseGrey blue:baseGrey alpha:1.0];
 }
 
