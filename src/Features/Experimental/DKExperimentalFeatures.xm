@@ -143,33 +143,41 @@ static BOOL DKIsDouyinAlreadyCustomColored(UIColor *color) {
     return (luma > 0.12 && (fabs(r - g) > 0.03 || fabs(g - b) > 0.03 || luma > 0.20));
 }
 
-static BOOL DKKnowledgeGradientHasNativeColor(UIView *view) {
-    if (!view) return NO;
+static UIColor *DKKnowledgeGradientNativeColor(UIView *view) {
+    if (!view) return nil;
     if ([view.layer isKindOfClass:[CAGradientLayer class]]) {
         CAGradientLayer *gl = (CAGradientLayer *)view.layer;
         NSArray *colors = gl.colors;
         if (colors.count > 0) {
-            for (id colorRef in colors) {
-                UIColor *c = [UIColor colorWithCGColor:(__bridge CGColorRef)colorRef];
+            id lastColorRef = colors.lastObject;
+            if (lastColorRef) {
+                UIColor *c = [UIColor colorWithCGColor:(__bridge CGColorRef)lastColorRef];
                 if (DKIsDouyinAlreadyCustomColored(c)) {
-                    return YES;
+                    return c;
                 }
             }
         }
     }
-    return NO;
+    return nil;
+}
+
+static BOOL DKKnowledgeGradientHasNativeColor(UIView *view) {
+    return DKKnowledgeGradientNativeColor(view) != nil;
 }
 
 static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInteger depth) {
     if (!view || !color || depth > 8) return;
     NSString *cls = NSStringFromClass(view.class);
-    // 仅针对 LivePhoto 适配器与背景图层，绝不污染普通视图
+    // 覆盖所有非全屏图文/实况容器与适配器层
     if ([cls containsString:@"LivePhoto"] ||
+        [cls containsString:@"AdapterCellView"] ||
+        [cls containsString:@"ImageContentBackgroundColorView"] ||
+        [cls containsString:@"DefaultContentCellView"] ||
         [cls containsString:@"fullscreenBackgroundView"]) {
         view.backgroundColor = color;
         view.accessibilityLabel = @"DKBackdropView";
     }
-    // 隐藏实况照片内部贴底的 280pt 黑色压暗层（AWEGradientView），消除图片底部与上方的色差黑块
+    // 隐藏 Cell 内部贴底的 280pt 黑色压暗层（AWEGradientView），消除图片底部与上方的色差黑块
     if ([cls isEqualToString:@"AWEGradientView"] || [cls containsString:@"AWEGradientView"]) {
         if (CGRectGetMinY(view.frame) > 400.0 || CGRectGetHeight(view.bounds) > 200.0) {
             view.hidden = YES;
@@ -180,7 +188,7 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
     }
 }
 
-#pragma mark - 4. 仅限横屏视频与实况照片 (LivePhoto) 自定义背景色 (Strict Horizontal Video & LivePhoto Only)
+#pragma mark - 4. 非全屏自定义背景色 (Non-Fullscreen Custom Backdrop)
 
 // 判断当前视频控制器是否为纯横屏/非竖屏视频（画面宽高比显著大于竖屏，留有上下黑边）
 static BOOL DKIsHorizontalVideo(AWEPlayVideoViewController *controller) {
@@ -292,8 +300,7 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
 
 %end
 
-// 移除对 RichContentContainerViewController 的全局遍历染色，绝不破坏抖音官方自带图文渐变色彩
-
+// 覆盖所有非全屏多图文与实况照片 Cell
 %hook UICollectionViewCell
 
 - (void)layoutSubviews {
@@ -302,35 +309,53 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
     if (style <= 0) return;
 
     NSString *cls = NSStringFromClass(self.class);
-    // 严格限定：只针对实况照片 Cell（LivePhotoContentAdapterCellView / LivePhoto）
-    // 绝不碰普通的图文、评论、详情或任何包含原生渐变的视图
-    if (![cls containsString:@"LivePhoto"]) {
+    // 严格排除评论区、搜索卡片、Tab等无关 CollectionViewCell
+    if ([cls containsString:@"Comment"] || [cls containsString:@"Header"] || [cls containsString:@"Footer"] || [cls containsString:@"TabContent"]) {
         return;
     }
 
-    // 检查自身是否已经包含抖音原生有效渐变色彩
-    Class gradientCls = %c(AWEKnowledgeGradientView);
-    for (UIView *sub in self.subviews) {
-        if ((gradientCls && [sub isKindOfClass:gradientCls]) || [NSStringFromClass(sub.class) isEqualToString:@"AWEKnowledgeGradientView"]) {
-            if (DKKnowledgeGradientHasNativeColor(sub)) {
-                return; // 抖音官方自带氛围渐变，100% 保持官方原貌，绝不上色！
+    // 精确命中图文与实况适配器 Cell
+    if ([cls containsString:@"ImageContentAdapterCellView"] ||
+        [cls containsString:@"LivePhotoContentAdapterCellView"] ||
+        [cls containsString:@"DefaultContentCellView"] ||
+        [cls containsString:@"LivePhoto"]) {
+
+        // 优先检查祖先或自身是否包含抖音官方原生设置的有效渐变背景色
+        UIColor *nativeColor = nil;
+        Class gradientCls = %c(AWEKnowledgeGradientView);
+        for (UIView *sub in self.subviews) {
+            if ((gradientCls && [sub isKindOfClass:gradientCls]) || [NSStringFromClass(sub.class) isEqualToString:@"AWEKnowledgeGradientView"]) {
+                nativeColor = DKKnowledgeGradientNativeColor(sub);
+                if (nativeColor) break;
             }
         }
-    }
-
-    UIColor *targetColor = nil;
-    if (style == 1) {
-        targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
-    } else if (style == 2) {
-        UIImage *img = DKFindImageRecursivelyInView(self, 0);
-        if (img) {
-            targetColor = DKExtractDominantColorFromImage(img);
+        if (!nativeColor && self.superview) {
+            for (UIView *sub in self.superview.subviews) {
+                if ((gradientCls && [sub isKindOfClass:gradientCls]) || [NSStringFromClass(sub.class) isEqualToString:@"AWEKnowledgeGradientView"]) {
+                    nativeColor = DKKnowledgeGradientNativeColor(sub);
+                    if (nativeColor) break;
+                }
+            }
         }
-    }
-    if (targetColor) {
-        self.backgroundColor = targetColor;
-        self.contentView.backgroundColor = targetColor;
-        DKApplyBackdropColorRecursively(self, targetColor, 0);
+
+        UIColor *targetColor = nil;
+        if (nativeColor) {
+            // 抖音官方自带氛围渐变：100% 继承并打通官方渐变末色，消除内部 Cell 遮挡与黑底
+            targetColor = nativeColor;
+        } else if (style == 1) {
+            targetColor = [UIColor colorWithRed:25.0/255.0 green:25.0/255.0 blue:25.0/255.0 alpha:1.0];
+        } else if (style == 2) {
+            UIImage *img = DKFindImageRecursivelyInView(self, 0);
+            if (img) {
+                targetColor = DKExtractDominantColorFromImage(img);
+            }
+        }
+
+        if (targetColor) {
+            self.backgroundColor = targetColor;
+            self.contentView.backgroundColor = targetColor;
+            DKApplyBackdropColorRecursively(self, targetColor, 0);
+        }
     }
 }
 
