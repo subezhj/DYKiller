@@ -100,7 +100,7 @@ static UITableView *DKFindTableView(UIView *root) {
     return nil;
 }
 
-AWESettingItemModel *DKMakeChoice(NSString *key, NSString *title, NSArray<NSString *> *options) {
+AWESettingItemModel *DKMakeChoiceWithMessage(NSString *key, NSString *title, NSString *message, NSArray<NSString *> *options) {
     AWESettingItemModel *item = [[%c(AWESettingItemModel) alloc] init];
     NSInteger current = [[NSUserDefaults standardUserDefaults] integerForKey:key];
     if (current < 0 || current >= (NSInteger)options.count) current = 0;
@@ -118,7 +118,7 @@ AWESettingItemModel *DKMakeChoice(NSString *key, NSString *title, NSArray<NSStri
         UIViewController *presenter = gSettingsPresenter;
         if (!presenter) return;
         UIAlertController *sheet =
-            [UIAlertController alertControllerWithTitle:title message:nil
+            [UIAlertController alertControllerWithTitle:title message:message
                                          preferredStyle:UIAlertControllerStyleActionSheet];
         [options enumerateObjectsUsingBlock:^(NSString *name, NSUInteger index, __unused BOOL *stop) {
             [sheet addAction:[UIAlertAction actionWithTitle:name style:UIAlertActionStyleDefault
@@ -139,6 +139,10 @@ AWESettingItemModel *DKMakeChoice(NSString *key, NSString *title, NSArray<NSStri
         [presenter presentViewController:sheet animated:YES completion:nil];
     };
     return item;
+}
+
+AWESettingItemModel *DKMakeChoice(NSString *key, NSString *title, NSArray<NSString *> *options) {
+    return DKMakeChoiceWithMessage(key, title, nil, options);
 }
 
 #pragma mark - 按钮项工厂

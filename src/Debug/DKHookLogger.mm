@@ -167,7 +167,10 @@ NSString *DKGetPerformanceMetricsReport(void) {
     [report appendFormat:@"DYKillerBlockJunkResources: %d\n", [defaults boolForKey:DKKeyBlockJunkResources]];
 
     BOOL dyyyFS = [defaults boolForKey:@"DYYYEnableFullScreen"];
-    [report appendFormat:@"\nDYYY Coexistence Status (DYYYEnableFullScreen): %d\n", dyyyFS];
+    NSString *dyyyBG = [defaults objectForKey:@"DYYYVideoBGColor"];
+    [report appendFormat:@"\nDYYY Coexistence Status:\n"];
+    [report appendFormat:@"  DYYYEnableFullScreen: %d\n", dyyyFS];
+    [report appendFormat:@"  DYYYVideoBGColor: %@ (DYKiller Yielded: %d)\n", dyyyBG ?: @"(nil)", (dyyyBG && dyyyBG.length > 0)];
 
     return report;
 }

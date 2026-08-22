@@ -541,8 +541,11 @@ static void DKProbeAppendFrozenMedia(NSMutableString *out) {
                     [out appendFormat:@"  抖音原生有取色？= %@\n", isNativeColored ? @"是（官方自绘氛围色）" : @"否（纯黑留白/未取色）"];
                     
                     NSInteger customStyle = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
-                    NSString *styleDesc = (customStyle == 1) ? @"优雅石墨深灰(#191919)" : ((customStyle == 2) ? @"主色自适应" : @"关闭");
+                    NSString *styleDesc = (customStyle == 1) ? @"优雅石墨深灰(#191919)" : ((customStyle == 2) ? @"主色自适应" : @"关闭（默认走 DYYY）");
+                    NSString *dyyyBG = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYVideoBGColor"];
+                    BOOL yieldsToDYYY = (dyyyBG && dyyyBG.length > 0);
                     [out appendFormat:@"  插件背景配置    = %@ (style=%ld)\n", styleDesc, (long)customStyle];
+                    [out appendFormat:@"  DYYY背景配置    = %@ (已让权给DYYY? %@)\n", dyyyBG ?: @"(未配置)", yieldsToDYYY ? @"是" : @"否"];
                 }
             }
             continue;

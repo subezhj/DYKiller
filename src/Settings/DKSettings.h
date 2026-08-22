@@ -27,6 +27,9 @@ AWESettingItemModel *DKMakeSwitch(NSString *key, NSString *title, NSString *deta
 /// options[0] 对应 0。当前选中项显示在 detail 上。
 AWESettingItemModel *DKMakeChoice(NSString *key, NSString *title, NSArray<NSString *> *options);
 
+/// 生成一个带副标题/说明文案的单选型设置项。
+AWESettingItemModel *DKMakeChoiceWithMessage(NSString *key, NSString *title, NSString *message, NSArray<NSString *> *options);
+
 /// 生成一个点击型设置项（cellType 26：点击触发 block）。
 AWESettingItemModel *DKMakeButton(NSString *title, NSString *detail, void (^onTap)(void));
 

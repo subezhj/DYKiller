@@ -525,10 +525,12 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
     %init(DKExperimentalFeaturesGroup);
     
     DKSettingsRegisterItem(@"新特性与实验性功能", ^AWESettingItemModel *{
-        return DKMakeChoice(
+        NSString *tip = @"【提示】若您在 DYYY 中配置了视频背景颜色，DYKiller 将自动让出控制权并优先遵循 DYYY 的配置。本功能默认关闭（系统默认）。";
+        return DKMakeChoiceWithMessage(
             DKKeyCustomBackdropColorStyle,
             @"[实验性] 非全屏自定义背景",
-            @[ @"系统默认", @"优雅深灰 (#191919)", @"视频主色自适应" ]
+            tip,
+            @[ @"系统默认（推荐，优先走 DYYY）", @"优雅深灰 (#191919)", @"视频主色自适应" ]
         );
     });
 
