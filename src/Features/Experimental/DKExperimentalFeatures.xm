@@ -188,7 +188,18 @@ static void DKApplyBackdropColorRecursively(UIView *view, UIColor *color, NSInte
     }
 }
 
-#pragma mark - 4. 非全屏自定义背景色 (Non-Fullscreen Custom Backdrop)
+static void DKHideVideoGradientsRecursively(UIView *view, NSInteger depth) {
+    if (!view || depth > 8) return;
+    NSString *cls = NSStringFromClass(view.class);
+    if ([cls isEqualToString:@"AWEGradientView"] || [cls containsString:@"AWEGradientView"]) {
+        if (CGRectGetMinY(view.frame) > 400.0 || CGRectGetHeight(view.bounds) > 200.0) {
+            view.hidden = YES;
+        }
+    }
+    for (UIView *sub in view.subviews) {
+        DKHideVideoGradientsRecursively(sub, depth + 1);
+    }
+}
 
 // 判断当前视频控制器是否为纯横屏/非竖屏视频（画面宽高比显著大于竖屏，留有上下黑边）
 static BOOL DKIsHorizontalVideo(AWEPlayVideoViewController *controller) {
@@ -199,8 +210,24 @@ static BOOL DKIsHorizontalVideo(AWEPlayVideoViewController *controller) {
         CGRect f = playerView.frame;
         if (f.size.width > 0 && f.size.height > 0) {
             // 横屏视频的宽度 >= 高度，或者高度明显小于屏幕高度（留黑边）
-            if (f.size.width >= f.size.height || f.size.height < 500.0) {
+            if (f.size.width >= f.size.height || f.size.height < 650.0) {
                 return YES;
+            }
+        }
+    }
+    // 检查 TTMetalViewVP 内部图层
+    UIView *rootView = controller.viewIfLoaded;
+    if (rootView) {
+        for (UIView *sub in rootView.subviews) {
+            if ([sub isKindOfClass:NSClassFromString(@"TTPlayerView")]) {
+                for (UIView *metal in sub.subviews) {
+                    if ([metal isKindOfClass:NSClassFromString(@"TTMetalViewVP")]) {
+                        CGRect mf = metal.frame;
+                        if (mf.size.height > 0 && mf.size.height < 600.0) {
+                            return YES;
+                        }
+                    }
+                }
             }
         }
     }
@@ -270,29 +297,15 @@ static void DKApplyVideoBackdropColor(AWEPlayVideoViewController *controller) {
         // 同步给祖先 contentView/Cell，防止播放器底边与底栏之间的间隙露出纯黑底
         UIView *canvas = controller.viewIfLoaded;
         if (canvas) {
+            canvas.backgroundColor = targetColor;
             for (UIView *ancestor = canvas.superview; ancestor; ancestor = ancestor.superview) {
                 if ([NSStringFromClass(ancestor.class) containsString:@"Cell"] || [NSStringFromClass(ancestor.class) containsString:@"ContentView"]) {
                     ancestor.backgroundColor = targetColor;
                     break;
                 }
             }
-        }
-
-        // 隐藏视频控制器内部贴底的 280pt 黑色压暗遮罩（AWEGradientView），防止与自适应背景叠加产生底部黑条
-        UIView *rootView = controller.viewIfLoaded;
-        if (rootView) {
-            for (UIView *sub in rootView.subviews) {
-                if ([sub isKindOfClass:[UIView class]]) {
-                    for (UIView *child in sub.subviews) {
-                        NSString *cCls = NSStringFromClass(child.class);
-                        if ([cCls isEqualToString:@"AWEGradientView"] || [cCls containsString:@"AWEGradientView"]) {
-                            if (CGRectGetMinY(child.frame) > 400.0 || CGRectGetHeight(child.bounds) > 200.0) {
-                                child.hidden = YES;
-                            }
-                        }
-                    }
-                }
-            }
+            // 彻底递归隐藏视频控制器内部所有贴底的黑色压暗遮罩（AWEGradientView）
+            DKHideVideoGradientsRecursively(canvas, 0);
         }
     }
 }
