@@ -61,10 +61,12 @@ static NSURL *DKPiPLocalClipURL(void) {
             [AVAssetWriterInputPixelBufferAdaptor
                 assetWriterInputPixelBufferAdaptorWithAssetWriterInput:input
                                         sourcePixelBufferAttributes:nil];
-        if (![writer addInput:input]) {
+        if (![writer canAddInput:input]) {
             [writer cancelWriting];
             return nil;
         }
+        // SDK 里 addInput: 返回 void，能不能加只能用 canAddInput: 判断。
+        [writer addInput:input];
 
         CVPixelBufferRef buffer = NULL;
         CVPixelBufferCreate(kCFAllocatorDefault, 240, 160,
@@ -127,8 +129,7 @@ static NSURL *DKPiPLocalClipURL(void) {
     self.player = [[AVQueuePlayer alloc] initWithURL:url];
     self.player.muted = YES;
     self.looper = [AVPlayerLooper playerLooperWithPlayer:self.player
-                                            templateItem:self.player.currentItem
-                                        loopTimeRange:kCMTimeInvalid];
+                                             templateItem:self.player.currentItem];
 
     self.playerLayer = [AVPlayerLayer playerLayerWithPlayer:self.player];
     self.playerLayer.frame = CGRectMake(0, 0, 1, 1);
