@@ -5,3 +5,9 @@ AGENTS.md
 .DS_Store
 DOCS/
 
+
+# 参考仓库与调试分析资料(本地工作副本,不跟踪)
+DYYY_repo/
+FLEX_repo/
+DEBUG_ANALYSIS_GUIDE.md
+analyze_debug_zip.py
