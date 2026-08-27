@@ -610,6 +610,7 @@ static UIView *DKGlassFindPlatter(UIView *root) {
 
 static char kDKOuterBackgroundHiddenKey;
 static char kDKSkinOriginalHiddenKey;
+static char kDKTabBarHiddenByDKKey;   // 「移除底栏」隐藏过本栏的标记，关闭时精准还原
 
 static void DKGlassSyncSkinViewsInTree(UIView *view, BOOL visible) {
     if (!view) return;
@@ -821,6 +822,21 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 
 - (void)layoutSubviews {
     %orig;
+    // 「移除底栏」优先级最高：整条抖音底栏（含挂在其内的玻璃底栏子视图）一并隐藏，
+    // 其余玻璃逻辑短路；关闭时还原我们隐藏过的那一条。
+    if (DKPrefBool(DKKeyHideBottomBar)) {
+        if (!self.hidden) {
+            self.hidden = YES;
+            objc_setAssociatedObject(self, &kDKTabBarHiddenByDKKey, @YES,
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        return;
+    }
+    if (objc_getAssociatedObject(self, &kDKTabBarHiddenByDKKey)) {
+        self.hidden = NO;
+        objc_setAssociatedObject(self, &kDKTabBarHiddenByDKKey, nil,
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
     if (@available(iOS 26.0, *)) {
         if (DKGlassTabBarEnabled()) {
             self.backgroundColor = UIColor.clearColor;
@@ -829,6 +845,15 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
             DKGlassUpdate(self);
         }
     }
+}
+
+// 抖音运行中会自行写 hidden（切页/过场动画），开关开着时一律钉住隐藏。
+- (void)setHidden:(BOOL)hidden {
+    if (DKPrefBool(DKKeyHideBottomBar)) {
+        %orig(YES);
+        return;
+    }
+    %orig(hidden);
 }
 
 %end

@@ -162,7 +162,6 @@ NSString *DKGetPerformanceMetricsReport(void) {
     [report appendFormat:@"DYKillerProMotionFluidScrollEnabled: %d\n", [defaults boolForKey:DKKeyProMotionFluidScrollEnabled]];
     [report appendFormat:@"DYKillerBackgroundAntiJetsamEnabled: %d\n", [defaults boolForKey:DKKeyBackgroundAntiJetsamEnabled]];
     [report appendFormat:@"DYKillerMediaIslandEnabled: %d\n", [defaults boolForKey:DKKeyMediaIslandEnabled]];
-    [report appendFormat:@"DYKillerLiveActivityIslandEnabled: %d\n", [defaults boolForKey:DKKeyLiveActivityIslandEnabled]];
     [report appendFormat:@"DYKillerPiPQuickLaunchEnabled: %d\n", [defaults boolForKey:DKKeyPiPQuickLaunchEnabled]];
     [report appendFormat:@"DYKillerBlockJunkResources: %d\n", [defaults boolForKey:DKKeyBlockJunkResources]];
 

@@ -216,31 +216,10 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 %end
 
-%hook AWEAwemeModel
-
-- (BOOL)isAd {
-    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
-        return NO;
-    }
-    return %orig;
-}
-
-- (BOOL)isCommerce {
-    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
-        return NO;
-    }
-    return %orig;
-}
-
-- (NSInteger)adLinkType {
-    if (DKPrefBool(DKKeyBlockEcommerceMarketing) || DKPrefBool(DKKeyBlockMarketingLayers) || DKPrefBool(DKKeyBlockJunkResources)) {
-        return 0;
-    }
-    return %orig;
-}
-
-%end
-
+// 广告/带货判定刻意不钩 isAd / isCommerce / adLinkType：把 isAd 钩成恒 NO 会让下方
+// setModel: 里的 [model isAd] 读到的也是 NO，广告 cell 隐藏就永远不触发，
+// 两段逻辑自相抵消（v0.5.5 及之前实际表现：小黄车等具名视图能藏，广告 cell 藏不掉）。
+// 隐藏一律读抖音原始判定。
 %hook AWEFeedCellViewController
 
 - (void)setModel:(id)model {

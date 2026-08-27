@@ -231,8 +231,9 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
 %hook UIView
 
 - (void)setFrame:(CGRect)frame {
-    NSInteger customBackdrop = [[NSUserDefaults standardUserDefaults] integerForKey:DKKeyCustomBackdropColorStyle];
-    if (!DKVideoFullscreenOn() && !DKCommentFreezeOn() && customBackdrop <= 0) {
+    // 全局热路径：三开关的合成结果按 NSUserDefaults 变更纪元缓存（见 DKUtils）。
+    // 未启用时每次调用只花一次整数比较，不再逐帧读 defaults。
+    if (!DKHotVideoGeometryActive()) {
         %orig;
         return;
     }
@@ -251,7 +252,8 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
 %ctor {
     DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
         if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoFullscreenMode]) {
-            NSInteger legacy = DKPrefBool(DKKeyVideoFullscreen) ? 1 : 1;
+            // 旧版 BOOL 开关迁移：开着 → 满屏填充(1)，关着 → 关闭(0)。
+            NSInteger legacy = DKPrefBool(DKKeyVideoFullscreen) ? 1 : 0;
             [NSUserDefaults.standardUserDefaults setInteger:legacy forKey:DKKeyVideoFullscreenMode];
         }
         return DKMakeChoice(

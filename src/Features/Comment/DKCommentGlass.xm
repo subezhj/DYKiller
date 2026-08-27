@@ -602,6 +602,12 @@ static void DKCommentGlassSync(UIViewController *controller) API_AVAILABLE(ios(2
 %hook UIView
 
 - (void)setBackgroundColor:(UIColor *)color {
+    // 本会话从未接管过任何槽位（功能一次没用）时直接放行，
+    // 这个全局 hook 对未启用用户几乎零成本。
+    if (!gEverAttached) {
+        %orig;
+        return;
+    }
     if ((objc_getAssociatedObject(self, &kCoverOriginalColorKey)
          || objc_getAssociatedObject(self, &kSlotOriginalColorKey))
         && DKColorIsOpaque(color)) {

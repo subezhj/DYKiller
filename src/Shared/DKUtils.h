@@ -36,6 +36,14 @@ UIView *DKCellContentView(UIView *view);
 /// 视频要撑到的目标高度：所在 Cell contentView 的满高；找不到返回 0。
 CGFloat DKFullCellHeight(UIView *view);
 
+/// NSUserDefaults 变更纪元：任意键被写入一次即 +1。
+/// 供热路径做“值可能变了”的廉价判定，避免逐帧读 defaults。
+uint32_t DKDefaultsEpoch(void);
+
+/// 全局 UIView setFrame: 热路径守卫：视频全屏 / 评论冻结 / 自定义背景任一激活即为 YES。
+/// 结果按纪元缓存；全部关闭时每次调用只是一次整数比较。
+BOOL DKHotVideoGeometryActive(void);
+
 #ifdef __cplusplus
 }
 #endif

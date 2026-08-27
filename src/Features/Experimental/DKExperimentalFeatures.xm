@@ -49,17 +49,24 @@
 
 #pragma mark - 3. 智能后台冻结与内存防杀 (Anti-Jetsam)
 
-%hook AWEShellViewController
+// 挂 UIApplication 的生命周期回调而非 AWEShellViewController：UIViewController
+// 不会自动收到 applicationDidEnterBackground:，除非抖音自行实现并转发；
+// 挂在 UIApplication 上才保证必达（与 MediaIsland / PiP 同一挂法，多层 hook 正常串联）。
+%hook UIApplication
 
 - (void)applicationDidEnterBackground:(UIApplication *)application {
     %orig;
     if (DKPrefBool(DKKeyBackgroundAntiJetsamEnabled)) {
-        DKLogHookEvent(@"Experimental", @"AWEShellViewController", @"Background Anti-Jetsam Memory Compression Triggered");
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-            // 深度释放网络请求与临时图片缓存，降低内存水位至安全线以下
+        DKLogHookEvent(@"Experimental", @"AntiJetsam", @"Background cache trim triggered");
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+            // 深度释放网络请求与临时缓存，降低内存水位
             [[NSURLCache sharedURLCache] removeAllCachedResponses];
-            // 触发系统低内存广播，促使各子模块释放闲置纹理
-            [[NSNotificationCenter defaultCenter] postNotificationName:UIApplicationDidReceiveMemoryWarningNotification object:nil];
+            // 内存警告广播必须主线程 post（观察者可能碰 UIKit 对象）。
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [[NSNotificationCenter defaultCenter]
+                    postNotificationName:UIApplicationDidReceiveMemoryWarningNotification
+                                  object:nil];
+            });
         });
     }
 }
@@ -340,11 +347,30 @@ static BOOL DKIsHorizontalVideo(AWEPlayVideoViewController *controller) {
 
 %end
 
+// 文案统一开关的合成判定，结果按 defaults 纪元缓存：开关关或 DYYY 未配置缩放时，
+// 下面的全局 layoutSubviews hook 只花一次整数比较就返回，不再逐帧分配类名字符串。
+static BOOL DKPOIStyleUnifiedActive(void) {
+    static uint32_t cachedEpoch = UINT32_MAX;
+    static BOOL cachedValue = NO;
+    uint32_t epoch = DKDefaultsEpoch();
+    if (epoch == cachedEpoch) return cachedValue;
+    cachedEpoch = epoch;
+
+    cachedValue = NO;
+    if (DKPrefBool(DKKeyPOICommentStyleUnified)) {
+        NSString *scaleStr = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYDescriptionScale"];
+        CGFloat scale = scaleStr.length > 0 ? [scaleStr floatValue] : 1.0;
+        cachedValue = scale > 0.0 && fabs(scale - 1.0) > 0.001;
+    }
+    return cachedValue;
+}
+
 // 针对图文作品标题/文案及同城卡片做 DYYY 字体缩放与颜色统一
 %hook UIView
 
 - (void)layoutSubviews {
     %orig;
+    if (!DKPOIStyleUnifiedActive()) return;
     NSString *cls = NSStringFromClass(self.class);
     if ([cls containsString:@"AWERichAwemeLifeCard"] ||
         [cls containsString:@"POICommentCard"] ||
@@ -392,7 +418,7 @@ static BOOL DKIsHorizontalVideo(AWEPlayVideoViewController *controller) {
         return DKMakeSwitch(
             DKKeyPOICommentStyleUnified,
             @"[实验性] 团购/POI推荐文案与DYYY统一",
-            @"自动将同城团购、大家都在说及店铺推荐卡片的文字排版与缩放同步为 DYYY 样式"
+            @"需 DYYY 已配置文案缩放；将同城团购、大家都在说及店铺推荐卡片同步为 DYYY 文案样式"
         );
     });
 
@@ -416,7 +442,7 @@ static BOOL DKIsHorizontalVideo(AWEPlayVideoViewController *controller) {
         return DKMakeSwitch(
             DKKeyBackgroundAntiJetsamEnabled,
             @"[实验性] 智能后台冻结与防杀",
-            @"退后台瞬间主动卸载冗余图片与网络缓存，杜绝系统 Jetsam 杀后台，实现前台 100% 极速秒开"
+            @"退后台时清理网络缓存并提示各模块释放内存，降低后台内存占用，减少被系统回收的概率"
         );
     });
 }

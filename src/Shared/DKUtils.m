@@ -8,6 +8,8 @@
 #import "DKKeys.h"
 #import "DouyinHeaders.h"
 
+#include <stdatomic.h>
+
 BOOL DKPrefBool(NSString *key) {
     if (DKGlassIsGatedKey(key) && !DKGlassOSAvailable()) return NO;
     return [[NSUserDefaults standardUserDefaults] boolForKey:key];
@@ -83,4 +85,48 @@ UIView *DKCellContentView(UIView *view) {
 CGFloat DKFullCellHeight(UIView *view) {
     UIView *contentView = DKCellContentView(view.superview);
     return contentView ? CGRectGetHeight(contentView.bounds) : 0.0;
+}
+
+#pragma mark - defaults 变更纪元
+
+// 任意键写入（含抖音/DYYY 自己写的）都会触发通知，纪元 +1。
+// 读方各自把“重算开关合成值”的成本摊到变更之后的第一帧，热路径上只做整数比较。
+static atomic_uint gDKDefaultsEpoch;
+static id gDKDefaultsObserver;
+
+__attribute__((constructor))
+static void DKUtilsBoot(void) {
+    gDKDefaultsObserver = [[NSNotificationCenter defaultCenter]
+        addObserverForName:NSUserDefaultsDidChangeNotification
+                    object:nil
+                     queue:nil
+                usingBlock:^(__unused NSNotification *note) {
+        atomic_fetch_add_explicit(&gDKDefaultsEpoch, 1, memory_order_relaxed);
+    }];
+}
+
+uint32_t DKDefaultsEpoch(void) {
+    return atomic_load_explicit(&gDKDefaultsEpoch, memory_order_relaxed);
+}
+
+#pragma mark - 全局 setFrame 守卫（纪元缓存）
+
+// 语义与原逐帧判定完全一致：DKVideoFullscreenOn || DKCommentFreezeOn || 自定义背景 > 0。
+// 与 DKVideoGeometry.xm 的全局 UIView setFrame: 钩子配套。
+BOOL DKHotVideoGeometryActive(void) {
+    static uint32_t cachedEpoch = UINT32_MAX;
+    static BOOL cachedValue = NO;
+    uint32_t epoch = DKDefaultsEpoch();
+    if (epoch == cachedEpoch) return cachedValue;
+    cachedEpoch = epoch;
+
+    NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+    NSNumber *mode = [defaults objectForKey:DKKeyVideoFullscreenMode];
+    BOOL fullscreen = mode ? mode.integerValue > 0
+                           : [defaults boolForKey:DKKeyVideoFullscreen];
+    BOOL freeze = DKGlassOSAvailable() && [defaults boolForKey:DKKeyCommentGlass];
+    BOOL backdrop = [defaults integerForKey:DKKeyCustomBackdropColorStyle] > 0;
+
+    cachedValue = fullscreen || freeze || backdrop;
+    return cachedValue;
 }

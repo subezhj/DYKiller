@@ -30,6 +30,18 @@ static NSMutableArray<DKNetworkRequestLog *> *DKGetNetworkLogs(void) {
     return logs;
 }
 
+// 时间格式化器创建成本高（毫秒级），每条日志新建一个在抓包高峰会明显堆积；静态复用。
+static NSDateFormatter *DKNetworkLogTimeFormatter(void) {
+    static NSDateFormatter *formatter;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        formatter = [[NSDateFormatter alloc] init];
+        formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+        formatter.dateFormat = @"HH:mm:ss.SSS";
+    });
+    return formatter;
+}
+
 static void DKAddNetworkLogDetailed(NSString *url, NSString *method, id params, NSInteger statusCode) {
     if (!url || url.length == 0) return;
     DKNetworkRequestLog *log = [[DKNetworkRequestLog alloc] init];
@@ -61,8 +73,7 @@ static void DKAddNetworkLogDetailed(NSString *url, NSString *method, id params, 
         }
     }
     
-    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    formatter.dateFormat = @"HH:mm:ss.SSS";
+    NSDateFormatter *formatter = DKNetworkLogTimeFormatter();
     log.dateString = [formatter stringFromDate:[NSDate date]];
     
     NSMutableArray *logs = DKGetNetworkLogs();
@@ -78,9 +89,9 @@ static void DKAddNetworkLog(NSString *url, NSString *method, NSInteger statusCod
     DKAddNetworkLogDetailed(url, method, nil, statusCode);
 }
 
+// 默认关，与设置页开关显示一致；未写入过键时不偷偷记录任何请求。
 static BOOL DKNetworkLoggerActive(void) {
-    id val = [[NSUserDefaults standardUserDefaults] objectForKey:DKKeyNetworkLoggerEnabled];
-    return val ? [val boolValue] : YES;
+    return [[NSUserDefaults standardUserDefaults] boolForKey:DKKeyNetworkLoggerEnabled];
 }
 
 %group DKNetworkLoggerGroup

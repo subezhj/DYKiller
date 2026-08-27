@@ -69,14 +69,10 @@ static void DKUpdateMediaIslandState(void) {
 
 %hook UIApplication
 
+// 只在真正退后台时写入一次：willResignActive 会在拉下通知中心、控制中心、
+// 系统弹窗等一切失活场景触发，与 didEnterBackground 叠加会重复写元数据、
+// 重复激活音频会话，并与抖音自身的会话管理打架。
 - (void)applicationDidEnterBackground:(UIApplication *)application {
-    %orig;
-    if (DKPrefBool(DKKeyMediaIslandEnabled)) {
-        DKUpdateMediaIslandState();
-    }
-}
-
-- (void)applicationWillResignActive:(UIApplication *)application {
     %orig;
     if (DKPrefBool(DKKeyMediaIslandEnabled)) {
         DKUpdateMediaIslandState();
@@ -86,7 +82,9 @@ static void DKUpdateMediaIslandState(void) {
 - (void)applicationWillEnterForeground:(UIApplication *)application {
     %orig;
     if (DKPrefBool(DKKeyMediaIslandEnabled)) {
-        // 切回前台后可更新或清理
+        // 回前台清掉占位条目，避免锁屏 / 控制中心残留「抖音 · 点击返回前台」。
+        // 后台再入时 didEnterBackground 会重新写入。
+        MPNowPlayingInfoCenter.defaultCenter.nowPlayingInfo = @{};
     }
 }
 
@@ -100,7 +98,7 @@ static void DKUpdateMediaIslandState(void) {
         return DKMakeSwitch(
             DKKeyMediaIslandEnabled,
             @"灵动岛媒体直达唤醒",
-            @"退后台时在灵动岛常驻媒体波形胶囊，点击灵动岛即可瞬间秒开切回抖音（兼容所有个人证书自签 IPA）"
+            @"退后台时在灵动岛显示媒体胶囊，点击灵动岛即可切回抖音；回前台自动清理"
         );
     });
 }
