@@ -69,10 +69,10 @@
 #pragma mark - 注册设置
 
 %ctor {
-    DKSettingsRegisterItem(@"个人主页", ^{
+    DKSettingsRegister(DKKeyProfileHideUGCGuide, ^{
         return DKMakeSwitch(DKKeyProfileHideUGCGuide, @"移除个人主页发作品区域", @"隐藏「作品」下方的去发布等引导元素");
     });
-    DKSettingsRegisterItem(@"个人主页", ^{
+    DKSettingsRegister(DKKeyProfileHideVisitorGuide, ^{
         return DKMakeSwitch(DKKeyProfileHideVisitorGuide, @"隐藏个人主页新访客", @"隐藏个人主页顶部的“新访客”提示卡片与入口");
     });
 }

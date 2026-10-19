@@ -21,6 +21,9 @@ static NSSet<NSString *> *DKGlassGatedKeySet(void) {
                DKKeyGlassTabBarClear,
                DKKeyAudioVizPosition,
                DKKeyAudioVizStyle,
+               DKKeyMediaSaveGlass,
+               DKKeyMediaSaveGlassClear,
+               DKKeySettingsPageGlass,
                nil];
     });
     return set;

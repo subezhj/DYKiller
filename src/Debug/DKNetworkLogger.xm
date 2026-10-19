@@ -192,11 +192,11 @@ NSString *DKNetworkLoggerReport(void) {
 
 %ctor {
     %init(DKNetworkLoggerGroup);
-    DKSettingsRegisterItem(@"调试", ^AWESettingItemModel *{
-        return DKMakeSwitch(
+    DKSettingsRegister(DKKeyNetworkLoggerEnabled, ^AWESettingItemModel *{
+        return DKSettingsWithoutBackup(DKMakeSwitch(
             DKKeyNetworkLoggerEnabled,
             @"API 网络请求抓包日志",
             @"参考 FLEX++ URLIntercept，开启后实时记录 App 所有 API 联网请求"
-        );
+        ));
     });
 }

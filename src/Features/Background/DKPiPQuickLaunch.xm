@@ -226,7 +226,7 @@ restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL 
 
 %ctor {
     %init(DKPiPQuickLaunchGroup);
-    DKSettingsRegisterItem(@"全屏/后台", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyPiPQuickLaunchEnabled, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyPiPQuickLaunchEnabled,
             @"画中画悬浮直达秒开",

@@ -404,17 +404,16 @@ static BOOL DKPOIStyleUnifiedActive(void) {
 %ctor {
     %init(DKExperimentalFeaturesGroup);
     
-    DKSettingsRegisterItem(@"新特性与实验性功能", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyCustomBackdropColorStyle, ^AWESettingItemModel *{
         NSString *tip = @"【提示】若您在 DYYY 中配置了视频背景颜色，DYKiller 将自动让出控制权并优先遵循 DYYY 的配置。本功能默认关闭（系统默认）。";
-        return DKMakeChoiceWithMessage(
+        return DKSettingsWithInfo(DKMakeChoice(
             DKKeyCustomBackdropColorStyle,
             @"[实验性] 非全屏自定义背景",
-            tip,
             @[ @"系统默认（推荐，优先走 DYYY）", @"优雅深灰 (#191919)", @"视频主色自适应" ]
-        );
+        ), tip);
     });
 
-    DKSettingsRegisterItem(@"新特性与实验性功能", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyPOICommentStyleUnified, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyPOICommentStyleUnified,
             @"[实验性] 团购/POI推荐文案与DYYY统一",
@@ -422,15 +421,8 @@ static BOOL DKPOIStyleUnifiedActive(void) {
         );
     });
 
-    DKSettingsRegisterItem(@"新特性与实验性功能", ^AWESettingItemModel *{
-        return DKMakeSwitch(
-            DKKeyOptimizeRenderPipeline,
-            @"[实验性] Metal 渲染穿透优化",
-            @"Direct-to-Display 异步硬件表面呈现，剔除冗余离屏合成，降低 GPU 发热并提升高刷帧率"
-        );
-    });
 
-    DKSettingsRegisterItem(@"新特性与实验性功能", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyProMotionFluidScrollEnabled, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyProMotionFluidScrollEnabled,
             @"[实验性] ProMotion 120Hz 极速触控",
@@ -438,7 +430,7 @@ static BOOL DKPOIStyleUnifiedActive(void) {
         );
     });
     
-    DKSettingsRegisterItem(@"新特性与实验性功能", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyBackgroundAntiJetsamEnabled, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyBackgroundAntiJetsamEnabled,
             @"[实验性] 智能后台冻结与防杀",

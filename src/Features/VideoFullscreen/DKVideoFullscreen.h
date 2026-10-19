@@ -80,8 +80,11 @@ NSString *DKRichBottomGradientStats(UIView *collectionView);
 /// 参数是 AWELivePreStream4LayerContainerView，返回多行文本。供探针核对。
 NSString *DKLiveChromeStats(UIView *container);
 
-/// 首页/朋友页 HUD 钉位：撑高 feed 表后把 HUD 高度按回撑高前的值。
-/// 不在已撑高的 feed 内（含全部详情页）返回 CGRectNull 放行。
+/// 直播预览 HUD 抬升两个同步点各自的首次接管数（容器布局 / 槽位布局）。供探针核对。
+NSString *DKLiveChromeLiftStats(void);
+
+/// 已撑高视频表内的 HUD 钉位：把高度限制为表撑高前的值，保持底部控件原位。
+/// 不在已撑高的视频表内返回 CGRectNull 放行。
 CGRect DKFeedHUDAdjustFrame(UIView *view, CGRect frame);
 
 /// 同步评论态 HUD 顶部黑遮罩的显隐，每轮布局后调一次。
@@ -89,6 +92,10 @@ void DKHUDStatusBarCoverSync(UIViewController *interaction);
 
 /// 该遮罩应有的高度（窗口安全区高）。实现与调试探针共用同一把尺子。
 CGFloat DKHUDStatusBarCoverHeight(UIView *hudView);
+
+/// 进度条容器每轮布局后调用：视频全屏开时清掉底边的纯黑细垫层，关时还原。
+/// 由进度条容器的统一布局入口调用，实现在 DKProgressUnderline.xm。
+void DKProgressUnderlineApply(UIView *container);
 
 /// 注册一个「开关关闭时立刻还原」的回调。各分支在 %ctor 里登记，由统一的开关项触发。
 void DKVideoFullscreenRegisterRestore(void (*restore)(void));

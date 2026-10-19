@@ -240,35 +240,35 @@ static BOOL DKIsJunkURL(NSString *urlString) {
 
 %ctor {
     %init(DKJunkResourceBlockerGroup);
-    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyBlockJunkResources, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyBlockJunkResources,
             @"网络垃圾与埋点拦截",
             @"拦截广告推送、监控埋点及离线垃圾资源联网请求，降低数据流量与后台耗电"
         );
     });
-    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyBlockHomePagePendants, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyBlockHomePagePendants,
             @"屏蔽活动营销挂件",
             @"屏蔽主页及视频画面上的节日活动悬浮球、红包任务挂件与集卡浮窗"
         );
     });
-    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyBlockEcommerceMarketing, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyBlockEcommerceMarketing,
             @"屏蔽电商带货与广告",
             @"隐藏视频左下角带货小黄车、团购推荐锚点与广告导流卡片"
         );
     });
-    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyBlockLynxComponents, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyBlockLynxComponents,
             @"拦截冗余 Lynx 动态卡片",
             @"阻止 Feed 流与活动容器加载非必要的 Lynx 动态前端广告与营销模版"
         );
     });
-    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyBlockMarketingLayers, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyBlockMarketingLayers,
             @"拦截短剧引流与水印图层",

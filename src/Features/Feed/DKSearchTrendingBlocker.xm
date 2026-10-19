@@ -256,21 +256,21 @@ static BOOL DKHideFeedStickersAndWidgetsOn(void) {
     _dyld_register_func_for_add_image(DKSearchImageAdded);
     dispatch_async(dispatch_get_main_queue(), ^{ DKInstallSearchTrendingHooks(); });
 
-    DKSettingsRegisterItem(@"搜索", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyHideSearchTrendingBoard, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyHideSearchTrendingBoard,
             @"屏蔽搜索榜单",
             @"阻止抖音热榜、城市榜、直播榜等 Tab 及其 Lynx 资源加载；开启后重启抖音生效"
         );
     });
-    DKSettingsRegisterItem(@"搜索", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyHideSearchRecommend, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyHideSearchRecommend,
             @"屏蔽猜你想搜",
             @"隐藏搜索中间页推荐词区域，不影响搜索输入联想和历史记录"
         );
     });
-    DKSettingsRegisterItem(@"净化与拦截", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyHideFeedStickersAndWidgets, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyHideFeedStickersAndWidgets,
             @"屏蔽视频挂件与拍同款贴纸",

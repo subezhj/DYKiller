@@ -11,3 +11,6 @@ DYYY_repo/
 FLEX_repo/
 DEBUG_ANALYSIS_GUIDE.md
 analyze_debug_zip.py
+.agents/
+TODO.md
+.claude

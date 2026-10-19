@@ -16,11 +16,17 @@
 
 #import "DKGlassTabBar.h"
 #import "DKAudioVisualizer.h"
+#import "DKPlusIcon.h"
+#import "DKTabBarAppearance.h"
+#import "DKTabBarBackdrop.h"
+#import "DKTabBarIcons.h"
+#import "DKTabBarRemoval.h"
 #import "DouyinHeaders.h"
 #import "DKGlassGuard.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
 #import "DKUtils.h"
+#import "DKViewAdjust.h"
 
 #import <QuartzCore/QuartzCore.h>
 #import <math.h>
@@ -31,6 +37,7 @@
 static NSString *const kDKBadgeContainerClass = @"AWENormalModeTabBarBadgeContainerView";
 static NSString *const kDKBadgeClass = @"DUXBadge";
 static NSString *const kDKPlatterClass = @"_UITabBarItemPlatterView";
+static NSString *const kDKTabButtonClass = @"_UITabButton";
 static NSString *const kDKPlusClickSelector = @"plusTabBarButtonDidClick:";
 static NSString *const kDKTabClickSelector = @"tabBarButtonDidTouchUpInside:gestureRecognizer:";
 
@@ -43,9 +50,24 @@ static const CGFloat kDKTitleFontSize = 15.0;
 static const CGFloat kDKPlusKeyGap = 12.0;
 // 拍摄图标在圆键内的四周留白。
 static const CGFloat kDKPlusIconInset = 14.0;
-// platter 还没建起来时的兜底几何（beta7 实测值），次帧即被真实值取代。
+// 自定义图标本身就是一枚圆，只留一圈窄边把它嵌进圆键，不需要给字形留呼吸空间。
+static const CGFloat kDKPlusIconCustomInset = 7.0;
+// 照相机图标（新图标 / 新双色图标）在 62pt 圆键里画 32pt，网格四周已留白。
+static const CGFloat kDKPlusIconCameraInset = 15.0;
+// 底栏样式「单图标」的图标边长；「图标+文字」为 24pt 图标加 10pt 文字。
+static const CGFloat kDKItemIconSide = 26.0;
+static const CGFloat kDKItemIconTextSide = 24.0;
+static const CGFloat kDKItemIconTextGap = 2.0;
+static const CGFloat kDKItemCaptionFontSize = 10.0;
+// 标题图的最大宽度：相邻项间距只有 70pt，过宽会压到邻项，超出时缩字。
+static const CGFloat kDKTitleMaxWidth = 64.0;
+static const CGFloat kDKTitleMinFontSize = 11.0;
+// platter 还没建起来时的兜底几何（beta7 实测值），量到真实值后即被取代。
 static const CGFloat kDKPlatterFallbackHeight = 62.0;
 static const CGFloat kDKPlatterFallbackInset = 21.0;
+// 胶囊里每颗 _UITabButton 的宽与首颗距胶囊左缘的距离（0.6.1-beta1 实测值），用法同上。
+static const CGFloat kDKTabButtonFallbackWidth = 94.0;
+static const CGFloat kDKTabButtonFallbackPad = 4.0;
 
 #pragma mark - 状态
 
@@ -55,6 +77,8 @@ static id gProxy = nil;
 static NSArray<NSNumber *> *gItemKinds = nil;
 // 每个 item 对应的抖音按钮，转发点击与读取角标都用它。与 items 同序等长。
 static NSArray *gItemButtons = nil;
+// 每个 item 的抖音 tabID（取不到为 NSNull），按样式出图用。与 items 同序等长。
+static NSArray *gItemTabIDs = nil;
 // 上次构建 items 用的签名，变了才重建，避免每次布局都换 items。
 static NSString *gSignature = nil;
 // 最近一次见到的抖音底栏，供开关变化时立即生效。
@@ -65,6 +89,10 @@ static __weak UIWindowScene *gObservedScene = nil;
 // 拍摄圆键及其内容。
 static UIVisualEffectView *gPlusKey = nil;
 static UIImageView *gPlusIcon = nil;
+// 新双色图标的青红层，垫在 gPlusIcon 下面；其他样式隐藏。
+static UIImageView *gPlusAccent = nil;
+// 上次出图时的拍摄样式，样式变了要重新取图与着色。
+static DKPlusStyle gPlusStyleApplied = DKPlusStyleDefault;
 static UIButton *gPlusHit = nil;
 // 抖音的拍摄按钮；被其他插件移除时为 nil，圆键随之隐藏。
 static __weak UIView *gPlusButton = nil;
@@ -120,6 +148,10 @@ static UITabBarController *DKGlassControllerForView(UIView *view) {
 
 static BOOL DKGlassTabBarEnabled(void) {
     return DKGlassOSAvailable() && DKPrefBool(DKKeyGlassTabBar);
+}
+
+BOOL DKGlassTabBarActive(void) {
+    return DKGlassTabBarEnabled();
 }
 
 static BOOL DKGlassTabBarUsesClear(void) {
@@ -268,21 +300,164 @@ static void DKGlassObserveStyle(UIView *host) API_AVAILABLE(ios(26.0)) {
     }];
 }
 
+#pragma mark - 内容取色
+
+// 内容的黑白极性跟【底色】走，不跟深浅色模式走：抖音首页在浅色模式下也是黑视频，消息页在
+// 深色模式下是黑底——模式说不清底色。选中/未选中的区别交给浓度（100% / 60%），这样两种极性
+// 下都保留切换指示，而不像出厂那样把「选中/未选中」当成「白/黑」两极用。
+//
+// 出厂两个色的来源（0.5.7-beta2 导出实证，见 docs/tab-bar-liquid-glass.md）：
+// · SelectedContentView 里那份 _UITabButton 的 tintColor 是白——UIKit 没写它，沿视图树继承
+//   到了 AWENormalModeTabBar.tintColor（抖音设的白），所以选中恒白、与深浅色无关。
+// · ContentView 里那份是纯黑——UIKit 按我们下发的 override trait 取。
+// 于是浅色模式下同一块玻璃上同时出现两种极性，深色模式下两者塌成同一个色。
+//
+// 选中透镜（_UITabSelectionView，CABackdropLayer）只取样背后内容（黑底页实测 #000000、
+// 白底页浅灰），不提供任何对比度保证，指望它兜底是错的。
+//
+// 两个色最终由标题图自己携带（见 DKGlassTitleImage）：beta3 实测 tint 那条路走不通。
+// 只管内容色。材质档（override 与 Clear 染色）仍归 DKGlassApplyStyle 按场景 trait 管。
+static UIImage *DKGlassTitleImage(NSString *title, UIColor *color);
+
+static UIUserInterfaceStyle gInkStyle = UIUserInterfaceStyleUnspecified;
+// 上一次分类过的宿主文字色，按指针比对做缓存——这是逐帧路径，指针没变就不必再解析一次。
+static UIColor *gInkHostColor = nil;
+static BOOL gInkHostIsLight = NO;
+// 判定用到的宿主色描述，只给探针看。
+static NSString *gInkSource = nil;
+// 事件计数，只给探针看。beta3 就是因为只有快照没有事件，才要交叉比对两行才看出样本是过期的。
+static NSUInteger gInkResolveCount = 0;    // 真正重新解析过宿主色的次数
+static NSUInteger gInkApplyCount = 0;      // 档位真的变了、重渲染过标题图的次数
+static NSUInteger gInkColorHits = 0;       // textColorChangedWithSelectedStatus: 命中次数
+static NSUInteger gInkStatusHits = 0;      // tabbarStatusDidChanged:animated: 命中次数
+// 已经写给拍摄图标的档位。按档位比对而不是按颜色比对：那是逐帧路径，UIColor 的相等性
+// 一旦对不上就会每帧重写 tintColor，白白触发 tintColorDidChange。
+static UIUserInterfaceStyle gPlusIconInkStyle = UIUserInterfaceStyleUnspecified;
+
+// 未选中的浓度。实测：50% 在亮底只有 3.94:1 不达 AA、55% 是 4.68:1 卡线，
+// 60% 两侧分别 6.69 / 5.59。不用系统 secondaryLabel——它浅色档是 #3C3C43 而非纯黑，
+// 压在白页上只有 3.4:1。保留 alpha、底色取纯黑白，与 DKGlassInkTextColor 同一口径。
+static const CGFloat kDKInkSecondaryAlpha = 0.60;
+
+static UIColor *DKGlassInkColor(BOOL selected) {
+    CGFloat white = (gInkStyle == UIUserInterfaceStyleDark) ? 1.0 : 0.0;
+    return [UIColor colorWithWhite:white alpha:(selected ? 1.0 : kDKInkSecondaryAlpha)];
+}
+
+static UIImage *DKGlassItemImage(NSString *tabID, NSString *title, BOOL selected, UIColor *color);
+
+// 按当前极性与底栏样式重渲染每个 item 的两张图。就地改 image / selectedImage，不重建 items——
+// 极性变化和切页是同一时刻，重建 items 会打断系统正在跑的透镜位移动画。
+static void DKGlassApplyItemImages(void) {
+    if (!gBar) return;
+    UIColor *selected = DKGlassInkColor(YES);
+    UIColor *normal = DKGlassInkColor(NO);
+    [gBar.items enumerateObjectsUsingBlock:^(UITabBarItem *item, NSUInteger index, __unused BOOL *stop) {
+        // 标题不另存一份：建 item 时就写进 accessibilityLabel 了，跟着 item 走不会失配。
+        NSString *title = item.accessibilityLabel;
+        if (title.length == 0) return;
+        id tabID = index < gItemTabIDs.count ? gItemTabIDs[index] : nil;
+        if (![tabID isKindOfClass:NSString.class]) tabID = nil;
+        item.image = DKGlassItemImage(tabID, title, NO, normal);
+        item.selectedImage = DKGlassItemImage(tabID, title, YES, selected);
+    }];
+}
+
+// 底色明暗只有抖音自己知道：它每页都重算自绘按钮的文字色（首页白、浅色消息 #161823、
+// 深色消息白），那就是「这一页底色是什么」的现成答案，而且是抖音自己保证读得清的答案。
+// 这条判据还能修一个 trait 修不了的偏差：抖音把 window 的 override 钉死为浅色、深色模式是
+// 自己换肤画的、不进 UIKit trait，跟场景 trait 等于跟系统，抖音单独锁深色时会取错。
+//
+// 只取【选中】那颗按钮：未选中那颗可能是中灰或半透明，按明度分类会判错。
+// 直接从抖音的按钮数组里找，不依赖 gItemButtons——那样取色就得排在 DKGlassSyncItems 之后，
+// 而标题图要按极性渲染，必须先定极性。拍摄按钮的 validIndex 同样是 0，按 type 排除掉。
+static UIColor *DKGlassHostTitleColor(NSArray *buttons, NSInteger selectedIndex) {
+    for (id button in buttons) {
+        UIView *view = [button isKindOfClass:UIView.class] ? button : nil;
+        if (!view || view.isHidden || !view.superview) continue;
+        if ([DKGlassValue(button, @"type") longLongValue] == kDKPlusButtonType) continue;
+        if ([DKGlassValue(button, @"validIndex") integerValue] != selectedIndex) continue;
+        id inner = DKGlassValue(button, @"innerView");
+        return DKGlassValue(DKGlassValue(inner, @"label"), @"textColor");
+    }
+    return nil;
+}
+
+static UIUserInterfaceStyle DKGlassInkStyleFor(NSArray *buttons, NSInteger selectedIndex,
+                                               UIUserInterfaceStyle fallback) {
+    UIColor *host = DKGlassHostTitleColor(buttons, selectedIndex);
+    if (!host) {
+        gInkSource = @"宿主文字色取不到，回落场景 trait";
+        return gInkStyle != UIUserInterfaceStyleUnspecified ? gInkStyle : fallback;
+    }
+    if (host == gInkHostColor) return gInkHostIsLight ? UIUserInterfaceStyleLight
+                                                      : UIUserInterfaceStyleDark;
+
+    // 宿主给的可能是动态色，按当前场景解析后才是真值。
+    UIColor *resolved = [host resolvedColorWithTraitCollection:
+        [UITraitCollection traitCollectionWithUserInterfaceStyle:fallback]];
+    // 切页过渡里抖音会把文字整体淡出，那一帧的色不能用来判极性，保持上一次的结论。
+    if (CGColorGetAlpha(resolved.CGColor) < 0.5) {
+        gInkSource = [NSString stringWithFormat:@"样本 alpha 过低（%@），保持上次结论", resolved];
+        return gInkStyle != UIUserInterfaceStyleUnspecified ? gInkStyle : fallback;
+    }
+
+    // 宿主用黑系文字 → 这一页底色偏亮 → 我们也用黑系。
+    gInkHostColor = host;
+    gInkHostIsLight = DKGlassColorIsInk(resolved);
+    gInkSource = [NSString stringWithFormat:@"宿主文字色 %@", resolved];
+    gInkResolveCount++;
+    return gInkHostIsLight ? UIUserInterfaceStyleLight : UIUserInterfaceStyleDark;
+}
+
+// 与 DKGlassApplyStyle 同样的纪律：档位没变就什么都不做。
+// 不写 tintColor / unselectedItemTintColor：0.5.7-beta4 导出实证前者对 AlwaysOriginal 的
+// 标题图无效（浅色模式首页那份里未选中副本的 tintColor 是 trait 推出的黑，字却按我们烤进
+// 图里的白 60% 渲染，实测 RGB 166 = 0.6×255 + 0.4×32），后者根本不被悬浮 provider 采纳。
+static void DKGlassApplyInk(UIUserInterfaceStyle style) {
+    // gBar 的判定放在记录档位之前：没底栏可写就不能把档位记下来，否则下次同档会被跳过。
+    if (style == UIUserInterfaceStyleUnspecified || !gBar || style == gInkStyle) return;
+    gInkStyle = style;
+    gInkApplyCount++;
+    DKGlassApplyItemImages();
+}
+
+NSString *DKGlassInkStatus(void) {
+    if (gInkStyle == UIUserInterfaceStyleUnspecified) return @"未判定（功能关闭或尚未布局）";
+    return [NSString stringWithFormat:
+            @"底色%@ · 选中 %@ · 未选中 %@\n"
+            @"                       依据：%@\n"
+            @"                       事件：写色 %lu · 状态变 %lu · 重新解析 %lu · 改档 %lu",
+            gInkStyle == UIUserInterfaceStyleDark ? @"偏暗（内容用白）" : @"偏亮（内容用黑）",
+            DKGlassInkColor(YES), DKGlassInkColor(NO), gInkSource ?: @"(无)",
+            (unsigned long)gInkColorHits, (unsigned long)gInkStatusHits,
+            (unsigned long)gInkResolveCount, (unsigned long)gInkApplyCount];
+}
+
 #pragma mark - 标题图
 
 // iOS 26 悬浮底栏按「图标在上、标签在下」排版，只给标题时图标槽空着、标题落到按钮底部；
 // titlePositionAdjustment 属于旧版层叠布局，悬浮 provider 完全忽略（实测给到 -168 仍纹丝
 // 不动）。故把标题渲染成模板图当图标用、标题置空，由系统把它当图标居中。
-// 模板图只取 alpha，着色仍归系统，选中态与深浅色都自动跟上。
+// 颜色直接烤进图里、走 AlwaysOriginal，不留给任何 tint API 决定：0.5.7-beta3 实测
+// `unselectedItemTintColor` 不被悬浮 provider 采纳（截图逐像素量到未选中字仍是纯白
+// L=0.965，而白 60% 压在 L=0.019 的胶囊上应为 L≈0.32），选中与未选中因此毫无区别。
+// 两张图字形与字号完全相同，只有颜色和浓度不同，所以尺寸一致、胶囊宽度不会跳。
 // 字重取 Semibold：玻璃胶囊上压着的内容要够重，太细在半透明底上会发糊。
 static BOOL DKGlassTabBarAutoTintEnabled(void) {
     return DKPrefBool(DKKeyGlassTabBarAutoTint);
 }
 
-static UIImage *DKGlassTitleImageWithColor(NSString *title, UIColor *color) {
+static UIImage *DKGlassTitleImage(NSString *title, UIColor *color) {
+    UIFont *font = [UIFont systemFontOfSize:kDKTitleFontSize weight:UIFontWeightSemibold];
+    CGFloat width = [title sizeWithAttributes:@{ NSFontAttributeName: font }].width;
+    if (width > kDKTitleMaxWidth) {
+        CGFloat fontSize = MAX(kDKTitleMinFontSize, floor(kDKTitleFontSize * kDKTitleMaxWidth / width));
+        font = [UIFont systemFontOfSize:fontSize weight:UIFontWeightSemibold];
+    }
     NSDictionary *attributes = @{
-        NSFontAttributeName: [UIFont systemFontOfSize:kDKTitleFontSize weight:UIFontWeightSemibold],
-        NSForegroundColorAttributeName: color ?: UIColor.labelColor
+        NSFontAttributeName: font,
+        NSForegroundColorAttributeName: color
     };
     CGSize size = [title sizeWithAttributes:attributes];
     size.width = ceil(size.width);
@@ -294,7 +469,46 @@ static UIImage *DKGlassTitleImageWithColor(NSString *title, UIColor *color) {
         imageWithActions:^(__unused UIGraphicsImageRendererContext *context) {
             [title drawAtPoint:CGPointZero withAttributes:attributes];
         }];
-    return [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    return [image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+}
+
+// 「图标+文字」：图标在上、10pt 文字在下合成一张图，交给系统当图标居中；文字宽度同样受邻项间距限制。
+static UIImage *DKGlassIconCaptionImage(UIImage *icon, NSString *title, UIColor *color) {
+    NSMutableParagraphStyle *paragraph = [[NSMutableParagraphStyle alloc] init];
+    paragraph.alignment = NSTextAlignmentCenter;
+    paragraph.lineBreakMode = NSLineBreakByTruncatingTail;
+    NSDictionary *attributes = @{
+        NSFontAttributeName: [UIFont systemFontOfSize:kDKItemCaptionFontSize weight:UIFontWeightSemibold],
+        NSForegroundColorAttributeName: color,
+        NSParagraphStyleAttributeName: paragraph
+    };
+    CGSize textSize = [title sizeWithAttributes:attributes];
+    CGFloat side = kDKItemIconTextSide;
+    CGFloat width = ceil(MAX(side, MIN(textSize.width, kDKTitleMaxWidth)));
+    CGFloat textHeight = ceil(textSize.height);
+    CGSize size = CGSizeMake(width, side + kDKItemIconTextGap + textHeight);
+
+    UIGraphicsImageRendererFormat *format = UIGraphicsImageRendererFormat.preferredFormat;
+    format.opaque = NO;
+    UIImage *image = [[[UIGraphicsImageRenderer alloc] initWithSize:size format:format]
+        imageWithActions:^(__unused UIGraphicsImageRendererContext *context) {
+            [icon drawInRect:CGRectMake((width - side) / 2.0, 0, side, side)];
+            [title drawWithRect:CGRectMake(0, side + kDKItemIconTextGap, width, textHeight)
+                        options:NSStringDrawingUsesLineFragmentOrigin attributes:attributes context:nil];
+        }];
+    return [image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+}
+
+// 按底栏样式出一张 item 图，颜色烤进图里（悬浮 provider 不采纳 tint）。表外 tabID 回落标题图。
+static UIImage *DKGlassItemImage(NSString *tabID, NSString *title, BOOL selected, UIColor *color) {
+    DKTabBarStyle style = DKTabBarCurrentStyle();
+    if (style != DKTabBarStyleDefault && DKTabBarHasIcon(tabID)) {
+        CGFloat side = style == DKTabBarStyleIcon ? kDKItemIconSide : kDKItemIconTextSide;
+        UIImage *icon = [DKTabBarIconTemplate(tabID, selected, side)
+            imageWithTintColor:color renderingMode:UIImageRenderingModeAlwaysOriginal];
+        return style == DKTabBarStyleIcon ? icon : DKGlassIconCaptionImage(icon, title, color);
+    }
+    return DKGlassTitleImage(title, color);
 }
 
 static UIColor *DKGlassColorAtPoint(UIView *view, CGPoint point) {
@@ -332,9 +546,10 @@ static void DKGlassSyncItemTints(void) {
     for (NSUInteger i = 0; i < gBar.items.count; i++) {
         UITabBarItem *item = gBar.items[i];
         UIColor *color = DKGlassTintForItemAtIndex(i);
-        UIImage *image = DKGlassTitleImageWithColor(item.accessibilityLabel ?: @"", color);
-        item.image = image;
-        item.selectedImage = image;
+        NSString *tabID = i < gItemTabIDs.count ? gItemTabIDs[i] : nil;
+        NSString *title = item.accessibilityLabel ?: @"";
+        item.image = DKGlassItemImage(tabID, title, NO, [color colorWithAlphaComponent:kDKInkSecondaryAlpha]);
+        item.selectedImage = DKGlassItemImage(tabID, title, YES, color);
     }
 }
 
@@ -398,8 +613,63 @@ static UIImage *DKGlassTrimTransparent(UIImage *image) {
 }
 
 // 图标同样走模板图：抖音会随页面在白/黑两版图标间切换，只取 alpha 则两版形状一致，
-// 着色交给圆键的 trait，浅色玻璃上不会出现看不见的白图标。
+// 着色跟内容极性走（见「内容取色」），黑视频上不会出现看不见的黑图标。
+CGFloat DKGlassPlusIconInset(void) {
+    switch (DKPlusCurrentStyle()) {
+        case DKPlusStyleCustom: return kDKPlusIconCustomInset;
+        case DKPlusStyleCamera:
+        case DKPlusStyleBrand: return kDKPlusIconCameraInset;
+        case DKPlusStyleDefault: break;
+    }
+    return kDKPlusIconInset;
+}
+
+// 拍摄圆键的图按「拍摄按钮」选项出：默认镜像抖音原图；新图标 / 新双色图标为照相机，
+// 双色在机身下垫一层青红；自定义图片用用户的圆形图。
 static void DKGlassSyncPlusIcon(UIView *button) {
+    DKPlusStyle style = DKPlusCurrentStyle();
+    if (style != gPlusStyleApplied) {
+        gPlusStyleApplied = style;
+        gPlusSourceIcon = nil;
+        gPlusIconInkStyle = UIUserInterfaceStyleUnspecified;
+    }
+    BOOL brand = style == DKPlusStyleBrand;
+    if (gPlusAccent.isHidden == brand) gPlusAccent.hidden = !brand;
+
+    // 自定义图标是用户选的照片，两道加工都要跳过：模板化只取 alpha，会把彩色抹成单色块；
+    // 圆形 alpha 已在裁剪时烘进图内，再裁一次透明包围盒会毁掉 3pt 均匀留边的前提。
+    if (style == DKPlusStyleCustom) {
+        UIImage *custom = DKPlusIconCustom();
+        if (custom == gPlusSourceIcon) return;
+        gPlusSourceIcon = custom;
+        gPlusIcon.image = custom;
+        return;
+    }
+
+    // 着色写在这里而不是 DKGlassApplyInk：这个函数每次布局都跑，图源没变也会走到，
+    // 换样式后不必等极性变化就能补上。
+    if (gPlusIconInkStyle != gInkStyle) {
+        gPlusIconInkStyle = gInkStyle;
+        gPlusIcon.tintColor = DKGlassInkColor(YES);
+    }
+
+    if (style == DKPlusStyleCamera || brand) {
+        CGFloat side = CGRectGetWidth(gPlusIcon.bounds);
+        UIImage *body = DKTabBarCameraTemplate(side);
+        if (gPlusIcon.image != body) gPlusIcon.image = body;
+        UIImage *accent = brand ? DKTabBarCameraAccent(side) : nil;
+        if (gPlusAccent.image != accent) gPlusAccent.image = accent;
+        gPlusSourceIcon = nil;
+        return;
+    }
+
+    // 着色写在这里而不是 DKGlassApplyInk：这个函数每次布局都跑，图源没变也会走到，
+    // 用户清掉自定义图标后不必等极性变化就能补上。
+    if (gPlusIconInkStyle != gInkStyle) {
+        gPlusIconInkStyle = gInkStyle;
+        gPlusIcon.tintColor = DKGlassInkColor(YES);
+    }
+
     UIImage *source = DKGlassPlusSourceIcon(button);
     if (!source || source == gPlusSourceIcon) return;
     gPlusSourceIcon = source;
@@ -497,7 +767,9 @@ static BOOL DKGlassSyncItems(UITabBarController *controller, NSArray *buttons) {
     NSMutableArray<NSString *> *titles = [NSMutableArray array];
     NSMutableArray<NSNumber *> *kinds = [NSMutableArray array];
     NSMutableArray *mirrored = [NSMutableArray array];
-    NSMutableString *signature = [NSMutableString string];
+    NSMutableArray *tabIDs = [NSMutableArray array];
+    // 底栏样式进签名：换样式即重建 items、重新出图。
+    NSMutableString *signature = [NSMutableString stringWithFormat:@"style%ld|", (long)DKTabBarCurrentStyle()];
     UIView *plus = nil;
 
     for (id button in buttons) {
@@ -514,10 +786,13 @@ static BOOL DKGlassSyncItems(UITabBarController *controller, NSArray *buttons) {
         if (title.length == 0) continue;
 
         NSInteger kind = [DKGlassValue(button, @"validIndex") integerValue];
+        NSString *tabID = DKTabBarButtonTabID(button);
         [titles addObject:title];
         [kinds addObject:@(kind)];
         [mirrored addObject:button];
-        [signature appendFormat:@"%@:%ld|", title, (long)kind];
+        [tabIDs addObject:tabID ?: (id)NSNull.null];
+        // tabID 取没取到也进签名：映射表晚于首轮布局就绪时，取到后要补出图标。
+        [signature appendFormat:@"%@:%ld:%@|", title, (long)kind, tabID ?: @"-"];
     }
 
     gPlusButton = plus;
@@ -532,15 +807,17 @@ static BOOL DKGlassSyncItems(UITabBarController *controller, NSArray *buttons) {
         NSMutableArray<UITabBarItem *> *items = [NSMutableArray arrayWithCapacity:titles.count];
         [titles enumerateObjectsUsingBlock:^(NSString *title, NSUInteger index, __unused BOOL *stop) {
             // 标题走 image 槽（见 DKGlassTitleImage），title 置空，否则系统还会再排一行标签。
-            UITabBarItem *item = [[UITabBarItem alloc] initWithTitle:nil
-                                                               image:DKGlassTitleImageWithColor(title, UIColor.labelColor)
+            // 图交给 DKGlassApplyItemImages 按极性统一渲染，选中与未选中各一张。
+            UITabBarItem *item = [[UITabBarItem alloc] initWithTitle:nil image:nil
                                                                  tag:(NSInteger)index];
             item.accessibilityLabel = title;   // 标题不再是文字，旁白与探针都靠它认人
             [items addObject:item];
         }];
         gBar.items = items;
         gItemKinds = kinds;
+        gItemTabIDs = tabIDs;
         gSignature = [signature copy];
+        DKGlassApplyItemImages();
     }
 
     NSUInteger current = [gItemKinds indexOfObject:@((NSInteger)controller.selectedIndex)];
@@ -571,7 +848,11 @@ static void DKGlassScheduleMirror(void) {
         if (!gBar || !controller) return;
         // 内容没变时纯空转；变了才重建 items，并要求底栏重排一次几何——胶囊宽度归 UIKit 算，
         // 圆键位置得跟着它走。签名收敛后不再标脏，不会形成布局环。
-        if (DKGlassSyncItems(controller, DKGlassValue(bar, @"tabBarButtons"))) [bar setNeedsLayout];
+        // 取色排在同步之前：标题图要按极性渲染，极性得先定下来。
+        NSArray *buttons = DKGlassValue(bar, @"tabBarButtons");
+        DKGlassApplyInk(DKGlassInkStyleFor(buttons, (NSInteger)controller.selectedIndex,
+                                           gGlassStyle));
+        if (DKGlassSyncItems(controller, buttons)) [bar setNeedsLayout];
     });
 }
 
@@ -587,9 +868,13 @@ static UIVisualEffectView *DKGlassMakePlusKey(id target) API_AVAILABLE(ios(26.0)
         [[UIVisualEffectView alloc] initWithEffect:DKGlassMakeGlassEffect(gGlassStyle, YES)];
     key.cornerConfiguration = [UICornerConfiguration capsuleConfiguration];
 
+    gPlusAccent = [[UIImageView alloc] init];
+    gPlusAccent.contentMode = UIViewContentModeScaleAspectFit;
+    gPlusAccent.hidden = YES;
+    [key.contentView addSubview:gPlusAccent];
+
     gPlusIcon = [[UIImageView alloc] init];
     gPlusIcon.contentMode = UIViewContentModeScaleAspectFit;
-    gPlusIcon.tintColor = UIColor.labelColor;
     [key.contentView addSubview:gPlusIcon];
 
     gPlusHit = [UIButton buttonWithType:UIButtonTypeCustom];
@@ -673,38 +958,167 @@ static void DKGlassApplyTransparentBarBackground(UITabBar *bar) {
     }
 }
 
-// 胶囊让出右侧一块，圆键补上。几何全部从 platter 实测：直径取它的高、纵向与它对齐、
-// 右边距取它自己的左内缩，这样胶囊与圆键的外边距对称。
-// platter 首帧还不存在时用兜底值，次帧即被真实值取代；写入先比较，不会形成布局环。
-static void DKGlassLayoutGlass(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0)) {
-    UIView *platterView = DKGlassFindPlatter(gBar);
-    gPlatter = platterView;
-    // 找到 platter 就顺手把它的玻璃换成 Clear。放在所有提前 return 之前：
-    // 拍摄按钮被其他插件移除时下面会早退，但胶囊材质照样要生效。
-    DKGlassApplyPlatterGlass(platterView, gGlassStyle);
+#pragma mark - 几何
 
-    CGRect platter = platterView ? [platterView convertRect:platterView.bounds toView:gBar] : CGRectZero;
-    BOOL measured = CGRectGetHeight(platter) > 0.0;
-    CGFloat diameter = measured ? CGRectGetHeight(platter) : kDKPlatterFallbackHeight;
-    CGFloat inset = measured ? CGRectGetMinX(platter) : kDKPlatterFallbackInset;
-    CGFloat top = measured ? CGRectGetMinY(platter) : 0.0;
+// 悬浮胶囊的几何口径（40.7.0 / iOS 27 实测，见 docs/tab-bar-removal.md）：
+// · 胶囊宽 = min(自然宽, UITabBar 宽 − 2×内缩)，在 UITabBar 内居中。内缩是 UIKit 内部常量，没有 API。
+// · 每颗 _UITabButton 宽 b、首颗距胶囊左缘 pad；自然排布时相邻间距为 b − 2·pad，压缩时间距线性收窄。
+// 这些量都从实物上量，量到之前用兜底值。
+typedef struct {
+    CGFloat buttonWidth;   // b
+    CGFloat buttonPad;     // pad
+    CGFloat height;        // 胶囊高，即圆键直径
+    CGFloat top;           // 胶囊在 UITabBar 内的 y
+    CGFloat inset;         // UITabBar 左右到胶囊的内缩
+} DKGlassMetrics;
 
-    // 拍摄按钮被其他插件移除时圆键一并隐藏，胶囊占回整条宽度。
+static const DKGlassMetrics kDKGlassFallbackMetrics = {
+    kDKTabButtonFallbackWidth, kDKTabButtonFallbackPad, kDKPlatterFallbackHeight, 0.0, kDKPlatterFallbackInset
+};
+static DKGlassMetrics gMetrics = kDKGlassFallbackMetrics;
+// 量这些值时抖音底栏的宽度；宽度变了全部作废，重新量。
+static CGFloat gMetricsBarWidth = 0.0;
+// 最近一次布局的读数，只给探针看。
+static NSUInteger gGeometryCount = 0;
+static NSUInteger gGeometryReference = 0;
+static CGFloat gGeometryTarget = 0.0;
+static CGFloat gGeometryMeasured = 0.0;
+static BOOL gInsetMeasured = NO;
+
+static void DKGlassCollectTabButtons(UIView *root, NSMutableArray<UIView *> *result) {
+    for (UIView *subview in root.subviews) {
+        if ([NSStringFromClass(subview.class) isEqualToString:kDKTabButtonClass]) [result addObject:subview];
+        else DKGlassCollectTabButtons(subview, result);
+    }
+}
+
+static BOOL DKGlassMetricChanged(CGFloat a, CGFloat b) {
+    return fabs(a - b) > 0.5;
+}
+
+// 从 platter 实物量出各项；返回 YES 表示有量变了，需要按新值重算一轮。
+// 胶囊里每颗按钮画两份（选中 / 未选中），frame 相同，取 minX 最小与次小的两个不同值即可。
+// 内缩只在压缩态量：此时胶囊两侧各让出一个内缩；自然态胶囊比可用宽度窄，读数偏大不可信。
+static BOOL DKGlassMeasure(UIView *platter, NSUInteger count) {
+    if (!platter || CGRectGetHeight(platter.bounds) <= 0.0) return NO;
+    CGRect frame = [platter convertRect:platter.bounds toView:gBar];
+    DKGlassMetrics metrics = gMetrics;
+    metrics.height = CGRectGetHeight(frame);
+    metrics.top = CGRectGetMinY(frame);
+
+    NSMutableArray<UIView *> *buttons = [NSMutableArray array];
+    DKGlassCollectTabButtons(platter, buttons);
+    CGFloat first = CGFLOAT_MAX, second = CGFLOAT_MAX, width = 0.0;
+    for (UIView *button in buttons) {
+        CGRect rect = [button convertRect:button.bounds toView:platter];
+        CGFloat x = CGRectGetMinX(rect);
+        if (x < first - 0.5) {
+            if (first < CGFLOAT_MAX) second = first;
+            first = x;
+            width = CGRectGetWidth(rect);
+        } else if (x > first + 0.5 && x < second - 0.5) {
+            second = x;
+        }
+    }
+    if (first < CGFLOAT_MAX && width > 0.0) {
+        metrics.buttonPad = first;
+        metrics.buttonWidth = width;
+    }
+    CGFloat naturalPitch = metrics.buttonWidth - 2.0 * metrics.buttonPad;
+    if (count >= 2 && second < CGFLOAT_MAX && second - first < naturalPitch - 0.5) {
+        metrics.inset = (CGRectGetWidth(gBar.bounds) - CGRectGetWidth(frame)) / 2.0;
+        gInsetMeasured = YES;
+    }
+
+    BOOL changed = DKGlassMetricChanged(metrics.buttonWidth, gMetrics.buttonWidth) ||
+                   DKGlassMetricChanged(metrics.buttonPad, gMetrics.buttonPad) ||
+                   DKGlassMetricChanged(metrics.height, gMetrics.height) ||
+                   DKGlassMetricChanged(metrics.inset, gMetrics.inset);
+    gMetrics = metrics;
+    return changed;
+}
+
+// 胶囊宽度跟着 4+1 参考态走：参考态是 reference 个项目、右侧有拍摄圆键、整组占满底栏两侧内缩之间。
+// 由参考态得出相邻间距，少几项就少几个间距——每项的大小与位置间隔都与参考态相同，不拉长。
+static CGFloat DKGlassCapsuleWidth(NSUInteger count, NSUInteger reference, CGFloat barWidth) {
+    CGFloat single = gMetrics.buttonWidth + 2.0 * gMetrics.buttonPad;
+    CGFloat naturalPitch = MAX(gMetrics.buttonWidth - 2.0 * gMetrics.buttonPad, 0.0);
+    reference = MAX(reference, count);
+    if (count <= 1 || reference <= 1) return single;
+
+    CGFloat available = barWidth - gMetrics.height - kDKPlusKeyGap - 2.0 * gMetrics.inset;
+    CGFloat referenceWidth = MIN(available, single + (reference - 1) * naturalPitch);
+    CGFloat pitch = MIN(MAX((referenceWidth - single) / (reference - 1), 0.0), naturalPitch);
+    return single + (count - 1) * pitch;
+}
+
+NSString *DKGlassGeometryStatus(void) {
+    if (!gBar) return @"未建立（功能关闭或尚未布局）";
+    return [NSString stringWithFormat:
+            @"项目 %lu / 参考 %lu · 胶囊目标 %.1f 实测 %.1f · 按钮宽 %.1f 首距 %.1f 高 %.1f · 内缩 %.1f（%@）",
+            (unsigned long)gGeometryCount, (unsigned long)gGeometryReference, gGeometryTarget, gGeometryMeasured,
+            gMetrics.buttonWidth, gMetrics.buttonPad, gMetrics.height, gMetrics.inset,
+            gInsetMeasured ? @"实测" : @"兜底"];
+}
+
+// 胶囊与拍摄圆键作为一组在抖音底栏内水平居中，项目少了只缩短胶囊、不拉长。
+// UITabBar 宽度按目标胶囊宽 + 两侧内缩写入后立即布局再量；量到的值变了就按新值再来一轮，首帧也一次到位。
+// 定位用实测胶囊宽，靠平移 UITabBar 让胶囊落到位——平移不改宽度，不会再触发重排。
+// 写入先比较，不会形成布局环。
+static void DKGlassLayoutGlass(AWENormalModeTabBar *douyinBar, NSUInteger reference) API_AVAILABLE(ios(26.0)) {
+    CGSize size = douyinBar.bounds.size;
+    if (DKGlassMetricChanged(size.width, gMetricsBarWidth)) {
+        gMetrics = kDKGlassFallbackMetrics;
+        gMetricsBarWidth = size.width;
+        gInsetMeasured = NO;
+    }
+
+    // 拍摄按钮被移除时圆键一并隐藏。
     BOOL available = gPlusButton != nil;
     if (gPlusKey.isHidden == available) gPlusKey.hidden = !available;
 
-    CGSize size = douyinBar.bounds.size;
-    CGFloat barWidth = available ? size.width - diameter - kDKPlusKeyGap : size.width;
-    CGRect barFrame = CGRectMake(0.0, 0.0, barWidth, size.height);
+    NSUInteger count = gBar.items.count;
+    UIView *platterView = nil;
+    for (NSUInteger pass = 0; pass < 2; pass++) {
+        gGeometryTarget = DKGlassCapsuleWidth(count, reference, size.width);
+        CGFloat barWidth = gGeometryTarget + 2.0 * gMetrics.inset;
+        CGRect frame = gBar.frame;
+        if (fabs(CGRectGetWidth(frame) - barWidth) > 0.01 || CGRectGetHeight(frame) != size.height) {
+            gBar.frame = CGRectMake(CGRectGetMinX(frame), 0.0, barWidth, size.height);
+        }
+        [gBar layoutIfNeeded];
+        platterView = DKGlassFindPlatter(gBar);
+        if (!DKGlassMeasure(platterView, count)) break;
+    }
+    gGeometryCount = count;
+    gGeometryReference = reference;
+    gPlatter = platterView;
+    // 找到 platter 就顺手把它的玻璃换成 Clear。放在所有提前 return 之前：
+    // 拍摄按钮被移除时下面会早退，但胶囊材质照样要生效。
+    DKGlassApplyPlatterGlass(platterView, gGlassStyle);
+
+    CGRect platter = platterView ? [platterView convertRect:platterView.bounds toView:gBar] : CGRectZero;
+    BOOL measured = CGRectGetWidth(platter) > 0.0;
+    CGFloat capsule = measured ? CGRectGetWidth(platter) : gGeometryTarget;
+    CGFloat capsuleX = measured ? CGRectGetMinX(platter) : gMetrics.inset;
+    CGFloat diameter = gMetrics.height;
+    gGeometryMeasured = capsule;
+
+    CGFloat group = capsule + (available ? kDKPlusKeyGap + diameter : 0.0);
+    CGFloat left = (size.width - group) / 2.0;
+    CGRect barFrame = gBar.frame;
+    barFrame.origin.x = left - capsuleX;
     if (!CGRectEqualToRect(gBar.frame, barFrame)) gBar.frame = barFrame;
     if (!available) return;
 
-    CGRect keyFrame = CGRectMake(size.width - inset - diameter, top, diameter, diameter);
+    CGRect keyFrame = CGRectMake(left + capsule + kDKPlusKeyGap, gMetrics.top, diameter, diameter);
     if (!CGRectEqualToRect(gPlusKey.frame, keyFrame)) gPlusKey.frame = keyFrame;
 
     CGRect bounds = gPlusKey.bounds;
-    CGRect iconFrame = CGRectInset(bounds, kDKPlusIconInset, kDKPlusIconInset);
+    CGFloat iconInset = DKGlassPlusIconInset();
+    CGRect iconFrame = CGRectInset(bounds, iconInset, iconInset);
     if (!CGRectEqualToRect(gPlusIcon.frame, iconFrame)) gPlusIcon.frame = iconFrame;
+    if (!CGRectEqualToRect(gPlusAccent.frame, iconFrame)) gPlusAccent.frame = iconFrame;
     if (!CGRectEqualToRect(gPlusHit.frame, bounds)) gPlusHit.frame = bounds;
 
     DKGlassSyncPlusIcon(gPlusButton);
@@ -736,8 +1150,24 @@ static void DKGlassSetDouyinContentVisible(AWENormalModeTabBar *douyinBar, NSArr
         if (![button isKindOfClass:UIView.class]) continue;
         UIView *view = button;
         if (view.layer.opacity != opacity) view.layer.opacity = opacity;
+        // 抖音切换首页键内容时对整颗按钮做 alpha 0→1 动画（fillMode both），写回 model 值盖不住
+        // presentation；全透明 mask 不随动画变化。宿主自带 mask 时 DKAdjustFade 不覆盖。
+        if (DKAdjustFadeFactor(view) != opacity) DKAdjustFade(view, opacity, CGSizeZero);
         if (view.userInteractionEnabled != visible) view.userInteractionEnabled = visible;
     }
+}
+
+// 4+1 参考态里胶囊的项目数：当前在镜像的项目，加上被「移除底栏项目」隐藏的。
+// 抖音或其他插件自己藏起的按钮不算，那不是参考态的一部分。
+static NSUInteger DKGlassReferenceCount(NSArray *buttons) {
+    NSUInteger count = 0;
+    for (id button in buttons) {
+        UIView *view = [button isKindOfClass:UIView.class] ? button : nil;
+        if (!view.superview) continue;
+        if ([DKGlassValue(button, @"type") longLongValue] == kDKPlusButtonType) continue;
+        if (!view.isHidden || DKTabBarRemovalHides(view)) count++;
+    }
+    return count;
 }
 
 #pragma mark - 挂载与拆除
@@ -764,15 +1194,21 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
         gBar = nil;
         gPlusKey = nil;
         gPlusIcon = nil;
+        gPlusAccent = nil;
+        gPlusStyleApplied = DKPlusStyleDefault;
         gPlusHit = nil;
         gPlusButton = nil;
         gPlusSourceIcon = nil;
         gProxy = nil;
         gItemKinds = nil;
         gItemButtons = nil;
+        gItemTabIDs = nil;
         gSignature = nil;
         // 重新开启时材质与 platter 玻璃都要能重新装上；探测结果不复位，那是设备能力，一次为准。
         gGlassStyle = UIUserInterfaceStyleUnspecified;
+        gInkStyle = UIUserInterfaceStyleUnspecified;
+        gInkHostColor = nil;
+        gPlusIconInkStyle = UIUserInterfaceStyleUnspecified;
         gPlatterGlassStyle = UIUserInterfaceStyleUnspecified;
         gPlatterGlassInstalled = nil;
         // 玻璃底栏是可视化的落位基准，它一撤可视化必须跟着撤，否则会留下一层孤儿视图。
@@ -805,13 +1241,21 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
     DKGlassObserveStyle(douyinBar);
     // 监听之外再逐帧比对一次：冷启动首帧与刚挂上时都没有 trait 变化事件可等。
     DKGlassApplyStyle(douyinBar.window.windowScene.traitCollection.userInterfaceStyle);
+    // 取色排在最前：标题图按极性渲染，拍摄图标着色也要用这一步定下的极性。
+    DKGlassApplyInk(DKGlassInkStyleFor(buttons, (NSInteger)controller.selectedIndex, gGlassStyle));
     DKGlassSyncItems(controller, buttons);
-    DKGlassLayoutGlass(douyinBar);
+    DKGlassLayoutGlass(douyinBar, DKGlassReferenceCount(buttons));
     DKGlassSyncItemTints();
     DKGlassSetDouyinContentVisible(douyinBar, buttons, NO);
     DKGlassSyncSkinViews(douyinBar, NO);
     // 放在最后：可视化的环绕轮廓要用 DKGlassLayoutGlass 刚算完的胶囊与圆键几何。
     DKAudioVisualizerLayout(douyinBar);
+}
+
+void DKGlassTabBarRefresh(void) {
+    AWENormalModeTabBar *bar = gDouyinBar;
+    if (!bar) return;
+    if (@available(iOS 26.0, *)) DKGlassUpdate(bar);
 }
 
 #pragma mark - Hook
@@ -842,8 +1286,8 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
             self.backgroundColor = UIColor.clearColor;
             self.layer.backgroundColor = UIColor.clearColor.CGColor;
             self.opaque = NO;
-            DKGlassUpdate(self);
         }
+        DKGlassUpdate(self);
     }
 }
 
@@ -1005,6 +1449,22 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
     DKGlassScheduleMirror();
 }
 
+// 抖音写文字色的两个入口（类信息实证；首页那颗的 AWENormalModeTabBarFeedView 继承本类、
+// 不重写这两个方法，所以一处覆盖全部四颗）。挂布局读到的必然是写入之前的旧值——写色本身
+// 不触发布局，beta3 首页因此一直停在上一页的样本上。%orig 之后排一次补读，合并调度保证
+// 一轮最多跑一趟。两处各自记数：若某一个长期为 0，说明它是多余的，可以删。
+- (void)textColorChangedWithSelectedStatus:(BOOL)selected {
+    %orig;
+    gInkColorHits++;
+    DKGlassScheduleMirror();
+}
+
+- (void)tabbarStatusDidChanged:(long long)status animated:(BOOL)animated {
+    %orig;
+    gInkStatusHits++;
+    DKGlassScheduleMirror();
+}
+
 %end
 
 %hook AWENormalModeTabBarBadgeContainerView
@@ -1021,34 +1481,11 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
 #pragma mark - 设置项注册
 
 %ctor {
-    DKSettingsRegisterItem(@"底栏", ^AWESettingItemModel *{
-        AWESettingItemModel *item = DKMakeSwitch(
-            DKKeyGlassTabBar,
-            @"悬浮玻璃底栏",
-            @"用 iOS 26 原生液态玻璃底栏顶替抖音底栏，标题与拍摄入口镜像自抖音"
-        );
-        // 开关一变立刻生效，不必等抖音下一次布局。
-        void (^origBlock)(void) = [item.switchChangedBlock copy];
-        item.switchChangedBlock = ^{
-            if (origBlock) origBlock();
-            AWENormalModeTabBar *bar = gDouyinBar;
-            if (@available(iOS 26.0, *)) {
-                if (bar) DKGlassUpdate(bar);
-            }
-        };
-        return item;
-    });
-
-    // 同分区按注册顺序排列，注册在后即显示在「悬浮玻璃底栏」下方。
-    DKSettingsRegisterItem(@"底栏", ^AWESettingItemModel *{
-        AWESettingItemModel *item = DKMakeSwitch(
-            DKKeyGlassTabBarClear,
-            @"清透玻璃",
-            @"把悬浮底栏换成清透液态玻璃，背后视频细节可辨；关闭则用系统默认的磨砂材质"
-        );
-        void (^origBlock)(void) = [item.switchChangedBlock copy];
-        item.switchChangedBlock = ^{
-            if (origBlock) origBlock();
+    DKSettingsRegister(DKKeyGlassTabBar, ^AWESettingItemModel *{
+        // 选定后立刻生效，不必等抖音下一次布局。
+        AWESettingItemModel *item = DKMakeGlassChoice(DKKeyGlassTabBar, DKKeyGlassTabBarClear, @"悬浮玻璃底栏", ^{
+            // 玻璃接管与否决定抖音底栏背景归谁管，背景让位跟着重判。
+            DKTabBarBackdropSetNeedsUpdate();
             AWENormalModeTabBar *bar = gDouyinBar;
             if (@available(iOS 26.0, *)) {
                 if (!bar) return;
@@ -1057,31 +1494,26 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
                 gGlassStyle = UIUserInterfaceStyleUnspecified;
                 DKGlassUpdate(bar);
             }
-        };
-        return item;
+        });
+        return DKSettingsWithInfo(item,
+            @"悬浮底栏的材质：关闭时不显示悬浮玻璃底栏；模糊玻璃使用系统 Regular；清透玻璃显示更多背后视频细节。");
     });
 
-    DKSettingsRegisterItem(@"底栏", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyGlassTabBarAutoTint, ^AWESettingItemModel *{
         AWESettingItemModel *item = DKMakeSwitch(
             DKKeyGlassTabBarAutoTint,
             @"底栏文字自动变色",
             @"按每个按钮下方内容的明暗切换黑白标题，适配精选半页"
         );
-        void (^origBlock)(void) = [item.switchChangedBlock copy];
-        item.switchChangedBlock = ^{
-            if (origBlock) origBlock();
+        return DKSettingsOnChange(item, ^{
             AWENormalModeTabBar *bar = gDouyinBar;
             if (@available(iOS 26.0, *)) {
                 if (bar) DKGlassUpdate(bar);
             }
-        };
-        return item;
+        });
     });
 
-    DKSettingsRegisterItem(@"底栏", ^AWESettingItemModel *{
-        if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyInteractionBottomLiftOffset]) {
-            [NSUserDefaults.standardUserDefaults setInteger:2 forKey:DKKeyInteractionBottomLiftOffset];
-        }
+    DKSettingsRegister(DKKeyInteractionBottomLiftOffset, ^AWESettingItemModel *{
         return DKMakeChoice(
             DKKeyInteractionBottomLiftOffset,
             @"底部交互与进度条抬升",
@@ -1089,22 +1521,19 @@ static void DKGlassUpdate(AWENormalModeTabBar *douyinBar) API_AVAILABLE(ios(26.0
         );
     });
 
-    DKSettingsRegisterItem(@"底栏", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyHideBottomBar, ^AWESettingItemModel *{
         AWESettingItemModel *item = DKMakeSwitch(
             DKKeyHideBottomBar,
             @"移除底栏",
             @"完全隐藏底部 TabBar 及其悬浮玻璃效果，释放底部全屏空间"
         );
-        void (^origBlock)(void) = [item.switchChangedBlock copy];
-        item.switchChangedBlock = ^{
-            if (origBlock) origBlock();
+        return DKSettingsOnChange(item, ^{
             AWENormalModeTabBar *bar = gDouyinBar;
             if (bar) {
                 [bar setNeedsLayout];
                 [bar layoutIfNeeded];
             }
-        };
-        return item;
+        });
     });
 
     %init(DKGlassTabBarHooks);

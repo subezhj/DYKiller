@@ -17,6 +17,7 @@
 
 #import "DouyinHeaders.h"
 #import "DKVideoFullscreen.h"
+#import "DKTabBarBackdrop.h"
 #import "DKGlassGuard.h"
 #import "DKKeys.h"
 #import "DKSettings.h"
@@ -250,54 +251,48 @@ static CGRect DKAdjustFrame(UIView *view, CGRect frame) {
 #pragma mark - 设置项注册
 
 %ctor {
-    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
-        if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoFullscreenMode]) {
-            // 旧版 BOOL 开关迁移：开着 → 满屏填充(1)，关着 → 关闭(0)。
-            NSInteger legacy = DKPrefBool(DKKeyVideoFullscreen) ? 1 : 0;
-            [NSUserDefaults.standardUserDefaults setInteger:legacy forKey:DKKeyVideoFullscreenMode];
-        }
-        return DKMakeChoice(
+    DKSettingsRegister(DKKeyVideoFullscreenMode, ^AWESettingItemModel *{
+        AWESettingItemModel *item = DKMakeChoice(
             DKKeyVideoFullscreenMode,
             @"视频全屏模式",
             @[ @"关闭全屏 (原版默认)", @"全屏模式 1：满屏填充 (画面无黑边)", @"全屏模式 2：原比例无损 (画面零裁切)" ]
         );
+        return DKSettingsOnChange(item, ^{
+            DKTabBarBackdropSetNeedsUpdate();
+            if (DKVideoFullscreenOn()) return;
+            for (NSUInteger i = 0; i < gRestoreCount; i++) gRestoreHooks[i]();
+        });
     });
-    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
-        if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyReadabilityTarget]) {
-            [NSUserDefaults.standardUserDefaults setInteger:2 forKey:DKKeyReadabilityTarget];
-        }
+    DKSettingsRegister(DKKeyReadabilityTarget, ^AWESettingItemModel *{
         return DKMakeChoice(
             DKKeyReadabilityTarget,
             @"可读性增强对象",
             @[ @"仅视频描述文案", @"仅作者用户名(@)", @"全量增强(文案+用户名)" ]
         );
     });
-    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
-        if (![NSUserDefaults.standardUserDefaults objectForKey:DKKeyVideoCaptionContrast]) {
-            [NSUserDefaults.standardUserDefaults setInteger:2 forKey:DKKeyVideoCaptionContrast];
-        }
+    DKSettingsRegister(DKKeyVideoCaptionContrast, ^AWESettingItemModel *{
         return DKMakeChoice(
             DKKeyVideoCaptionContrast,
             @"文字对比度强度",
             @[ @"关闭", @"轻", @"标准", @"强" ]
         );
     });
-    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyMetalSharpeningEnabled, ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyMetalSharpeningEnabled, @"Metal 画面边缘锐化", @"开启 GPU 边缘动态锐化，显著提升低清/压缩视频清晰度");
     });
-    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyMetalVibrantColorEnabled, ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyMetalVibrantColorEnabled, @"Metal 画面色彩增强", @"开启智能画质对比度与饱和度调谐，让视频呈现 HDR 通透感");
     });
-    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyZenFeedUIEnabled, ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyZenFeedUIEnabled, @"极简控件模式 (极简清爽 UI)", @"隐去视频播放界面冗余挂件与无用浮层，仅保留核心要素，大幅提升画质清爽度");
     });
-    DKSettingsRegisterItem(@"视频", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyKeepProgressInCleanMode, ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyKeepProgressInCleanMode, @"清屏模式保留视频进度条", @"两指捏合切清屏或全屏放大时，保留底栏完整/可拖拽视频进度条，清爽看剧两不误");
     });
-    DKSettingsRegisterItem(@"高级与播放器", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyForceNativeAVPlayer, ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyForceNativeAVPlayer, @"iOS 原生 AVPlayer 引擎", @"(实验性) 强切 Apple 原生 AVPlayer 解码，极低功耗，原生锁屏/画中画咬合");
     });
-    DKSettingsRegisterItem(@"高级与播放器", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyOptimizeRenderPipeline, ^AWESettingItemModel *{
         return DKMakeSwitch(DKKeyOptimizeRenderPipeline, @"Metal 渲染管道极简优化", @"剥离 Metal 视口重叠的 22 层冗余渐变遮罩，大幅降低 GPU 混合渲染开销");
     });
 }

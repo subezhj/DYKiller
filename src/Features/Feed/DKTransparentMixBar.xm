@@ -63,7 +63,7 @@ static void DKSyncMixBar(UIView *view) {
 %end
 
 %ctor {
-    DKSettingsRegisterItem(@"播放体验", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyTransparentMixBar, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyTransparentMixBar,
             @"合集条透明",

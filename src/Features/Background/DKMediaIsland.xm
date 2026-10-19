@@ -94,7 +94,7 @@ static void DKUpdateMediaIslandState(void) {
 
 %ctor {
     %init(DKMediaIslandGroup);
-    DKSettingsRegisterItem(@"全屏/后台", ^AWESettingItemModel *{
+    DKSettingsRegister(DKKeyMediaIslandEnabled, ^AWESettingItemModel *{
         return DKMakeSwitch(
             DKKeyMediaIslandEnabled,
             @"灵动岛媒体直达唤醒",

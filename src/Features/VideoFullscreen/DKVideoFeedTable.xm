@@ -2,8 +2,7 @@
 //  DKVideoFeedTable.xm
 //  「视频表被底栏压掉一个底栏高」这一类裁剪源头的修正：撑高表，再把 HUD 钉回撑高前的高度。
 //
-//  这类表 clipsToBounds=YES，cell 与 contentView 都等于表高，所以表一撑高整条 cell 链就变满高、
-//  视频随之铺满；HUD（文案/昵称/点赞栏/进度条）的高度钉回原值，底部锚定元素才留在原处。
+// 表与 Cell 的高度由视频表规则和详情页行高入口共同准备；HUD 按原高保留底部锚定位置。
 //
 //  作用域是基类 AWEFeedDataSafeTableView，不是某一页：
 //
@@ -46,10 +45,29 @@ static NSHashTable<UITableView *> *gStretchedTables = nil;
 // 是「写入时拦截不能砍成事后纠正」的直接依据。
 static NSUInteger gHitSetFrame = 0;
 static NSUInteger gHitFallback = 0;
+// 40.7.0 的旧表写入入口。与新版控制器布局补正分开统计，用于后续判断旧逻辑是否仍有贡献。
+static NSUInteger gHitTableSetFrame = 0;
+// 控制器布局完成后补正已进入视图树的子表，并分别统计首页与详情入口。
+static NSUInteger gHitTableLayout = 0;
+struct DKFeedTableLayoutStats {
+    NSUInteger runs;
+    NSUInteger adjustments;
+};
+static DKFeedTableLayoutStats gFeedTableLayoutStats = {};
+static DKFeedTableLayoutStats gDetailTableLayoutStats = {};
 
 NSString *DKVideoFeedTableStats(void) {
-    return [NSString stringWithFormat:@"HUD setFrame=%lu  HUD 布局后兜底=%lu",
-            (unsigned long)gHitSetFrame, (unsigned long)gHitFallback];
+    return [NSString stringWithFormat:
+            @"HUD setFrame=%lu  HUD 布局后兜底=%lu  表 setFrame补正=%lu  表控制器布局补正=%lu  "
+             "首页控制器布局 跑=%lu 补正=%lu  详情控制器布局 跑=%lu 补正=%lu",
+            (unsigned long)gHitSetFrame,
+            (unsigned long)gHitFallback,
+            (unsigned long)gHitTableSetFrame,
+            (unsigned long)gHitTableLayout,
+            (unsigned long)gFeedTableLayoutStats.runs,
+            (unsigned long)gFeedTableLayoutStats.adjustments,
+            (unsigned long)gDetailTableLayoutStats.runs,
+            (unsigned long)gDetailTableLayoutStats.adjustments];
 }
 
 #pragma mark - 目标判定
@@ -78,16 +96,15 @@ NSNumber *DKVideoFeedTableOriginalHeight(UIView *table) {
 
 // 该视图所在视频表撑高前的高度，也就是 HUD 的钉位目标；不在撑高作用域内返回 0。
 static CGFloat DKFeedOriginalHeight(UIView *view) {
-    if (!DKVideoFullscreenOn()) return 0.0;
+    if (!DKVideoGeometryOn()) return 0.0;
     return DKVideoFeedTableOriginalHeight(DKFeedTableForView(view)).doubleValue;
 }
 
 #pragma mark - 撑高视频表
 
-// 撑高规则的唯一实现。两处 %hook 只是入口：AWEFeedTableView 自己实现了 setFrame:，挂基类拦不到它；
-// AWEAwemeDetailTableView 没实现，只能靠基类那一层。子类先命中改成满高，super 再进基类那一层时
-// current 已等于 target，守卫直接跳过，天然幂等。
-CGRect DKVideoFeedTableAdjustFrame(UITableView *table, CGRect frame) {
+// 共享撑高规则同时供表写入与控制器布局入口调用。首页表自己实现 setFrame:，
+// 详情表继承基类的写入入口；已达到目标高度的写入直接放行。
+static CGRect DKFeedTableAdjustFrameToHeight(UITableView *table, CGRect frame, CGFloat target) {
     if (!DKVideoGeometryOn()) {
         // 关闭后一律放行，抖音写什么就是什么；标记清掉以免 HUD 继续被钉。
         objc_setAssociatedObject(table, &kDKFeedOriginalHeightKey, nil,
@@ -95,11 +112,11 @@ CGRect DKVideoFeedTableAdjustFrame(UITableView *table, CGRect frame) {
         return CGRectNull;
     }
 
-    CGFloat target = table.superview ? CGRectGetHeight(table.superview.bounds) : 0.0;
     CGFloat current = CGRectGetHeight(frame);
     // 容器不比来意的高度更高 → 这张表没被底栏压缩过（搜索页、好友聊天页就是这种），不在作用域内；
     // 高度不到容器一半 → 布局早期的半成品，记下它会把 HUD 钉到错误的位置。
-    if (target <= 0.0
+    if (!isfinite(target) || !isfinite(current)
+        || target <= 0.0
         || current >= target - kDKFeedTolerance
         || current < target * kDKFeedMinHeightRatio) {
         return CGRectNull;
@@ -114,6 +131,31 @@ CGRect DKVideoFeedTableAdjustFrame(UITableView *table, CGRect frame) {
     return frame;
 }
 
+CGRect DKVideoFeedTableAdjustFrame(UITableView *table, CGRect frame) {
+    return DKFeedTableAdjustFrameToHeight(table, frame,
+        CGRectGetHeight(table.superview.bounds));
+}
+
+// 详情表在建行前可能尚未挂入父视图，此时取已加载控制器根视图的高度。
+// 首次写表尺寸之前记录真实原高，供首个 Cell 的 HUD 钉位使用。
+BOOL DKVideoFeedTablePrepareForController(UIViewController *controller, UITableView *table) {
+    if (!DKVideoGeometryOn() || !NSThread.isMainThread || !table) return NO;
+    Class tableClass = DKVideoFeedTableClass();
+    UIView *root = controller.viewIfLoaded;
+    if (!tableClass || ![table isKindOfClass:tableClass] || !root) return NO;
+    UIWindow *window = table.window ?: root.window;
+    if (window && window.windowLevel != UIWindowLevelNormal) return NO;
+    if (table.superview && ![table isDescendantOfView:root]) return NO;
+    if (!CGAffineTransformIsIdentity(table.transform)) return NO;
+
+    CGFloat target = table.superview
+        ? CGRectGetHeight(table.superview.bounds) : CGRectGetHeight(root.bounds);
+    CGRect adjusted = DKFeedTableAdjustFrameToHeight(table, table.frame, target);
+    if (CGRectIsNull(adjusted)) return NO;
+    table.frame = adjusted;
+    return YES;
+}
+
 // 在写入时就改成满高：抖音把表高改回原值（如关闭评论区）的那一刻即被顶回去，
 // 不必等下一次布局。事后在 layoutSubviews 里改会留下「切一下才恢复」的空窗。
 %hook AWEFeedDataSafeTableView
@@ -124,6 +166,7 @@ CGRect DKVideoFeedTableAdjustFrame(UITableView *table, CGRect frame) {
         %orig;
         return;
     }
+    gHitTableSetFrame++;
     %orig(adjusted);
 }
 
@@ -137,32 +180,45 @@ CGRect DKVideoFeedTableAdjustFrame(UITableView *table, CGRect frame) {
         %orig;
         return;
     }
+    gHitTableSetFrame++;
     %orig(adjusted);
 }
 
 %end
 
-%hook AWEAwemeDetailTableView
+// 控制器完成原生布局后，子表已进入视图树，可以读取父容器高度。
+// 两套控制器共用撑高规则；仅在目标未满足时修改子表 frame。
+static void DKSyncFeedTableLayout(UITableView *table, DKFeedTableLayoutStats *stats) {
+    stats->runs++;
+    if (!table) return;
 
-- (void)setFrame:(CGRect)frame {
-    if (DKVideoFullscreenOn()) {
-        CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
-        if (screenHeight > 0 && frame.size.height > 0 && self.superview) {
-            CGFloat superHeight = CGRectGetHeight(self.superview.bounds);
-            // 仅在被外层容器限制且存在非满高截断时才扩展，避免对独立卡片或短剧中心子容器造成递归重排
-            if (superHeight >= screenHeight - kDKFeedTolerance) {
-                CGFloat remainder = fmod(frame.size.height, screenHeight);
-                if (remainder > kDKFeedTolerance && fabs(frame.size.height - superHeight) > kDKFeedTolerance) {
-                    frame.size.height = superHeight;
-                }
-            }
-        }
-    }
-    %orig(frame);
+    CGRect adjusted = DKVideoFeedTableAdjustFrame(table, table.frame);
+    if (CGRectIsNull(adjusted)) return;
+
+    table.frame = adjusted;
+    gHitTableLayout++;
+    stats->adjustments++;
+}
+
+%hook AWEFeedTableViewController
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (!DKVideoGeometryOn()) return;
+    DKSyncFeedTableLayout(self.tableView, &gFeedTableLayoutStats);
 }
 
 %end
 
+%hook AWEAwemeDetailTableViewController
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (!DKVideoGeometryOn()) return;
+    DKSyncFeedTableLayout(self.tableView, &gDetailTableLayoutStats);
+}
+
+%end
 
 #pragma mark - HUD 钉位
 
