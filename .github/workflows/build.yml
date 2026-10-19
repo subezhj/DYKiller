@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - codex/integrate-upstream-0.6.3
     paths:
       - 'src/**'
       - 'Makefile'
@@ -28,6 +29,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Check integration consistency
+        run: python3 .github/scripts/check-integration.py
 
       - name: Resolve DYKiller version
         id: package

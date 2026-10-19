@@ -1,5 +1,10 @@
 # DYKiller
 
+## 版本说明
+
+- [reference/custom-beta153-20261019](https://github.com/subezhj/DYKiller/tree/reference/custom-beta153-20261019)：保留原版本 [`aff2417`](https://github.com/subezhj/DYKiller/commit/aff2417666c3f1e106f3c0eba2609bd688aa8771)，是**尚未合并上游更新的自定义版本**，用于参考和对照。
+- [codex/integrate-upstream-0.6.3](https://github.com/subezhj/DYKiller/tree/codex/integrate-upstream-0.6.3)：整合上游 0.6.3 并保留自定义功能的分支，版本号为 `0.6.3-custom1`。编译结果请查看 [GitHub Actions](https://github.com/subezhj/DYKiller/actions/workflows/build.yml)，运行效果仍需真机验证。
+
 > DY测试版本 40.7.0
 
 > 本项目旨在补充和修复 图层、优化、DYYY、DYYY++ 等项目中缺失或已失效的功能，原则上不重复实现已有功能。如有其他需求，开发者可自行 Fork 本项目，并参考“致谢”中列出的相关项目进行修复或扩展。
